@@ -63,6 +63,8 @@ fun ProjectScreen(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.smallestScreenWidthDp >= 600
+    val showPermanentUI = isLandscape || isTablet
 
     LaunchedEffect(projectPath) { viewModel.loadProject(projectPath) }
 
@@ -76,11 +78,11 @@ fun ProjectScreen(
         }
     }
 
-    if (isLandscape) {
+    if (showPermanentUI) {
         PermanentNavigationDrawer(
             drawerContent = {
                 PermanentDrawerSheet(
-                    modifier = Modifier.width(300.dp),
+                    modifier = Modifier.width(250.dp),
                     drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
                     ProjectDrawerContent(

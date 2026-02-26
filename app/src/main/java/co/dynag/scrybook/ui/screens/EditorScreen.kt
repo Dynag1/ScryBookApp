@@ -63,7 +63,10 @@ fun EditorScreen(
     var showNewChapterDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
+    // Detection logic for permanent menu: Landscape OR Tablet (> 8 inches / sw600dp)
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.smallestScreenWidthDp >= 600
+    val showPermanentUI = isLandscape || isTablet
 
     // Launcher for image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -98,7 +101,7 @@ fun EditorScreen(
         onDispose { viewModel.saveNow() }
     }
 
-    if (isLandscape) {
+    if (showPermanentUI) {
         PermanentNavigationDrawer(
             drawerContent = {
                 PermanentDrawerSheet(
@@ -163,7 +166,6 @@ fun EditorScreen(
                 }
             ) { innerPadding ->
                 // Key the content on chapterId to force recreation when switching chapters
-                // This ensures we get a fresh WebView and fresh state for each chapter
                 key(chapterId) {
                     Row(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                         Box(modifier = Modifier.weight(1f)) {
@@ -234,14 +236,16 @@ fun EditorScreen(
                 )
             }
         ) { innerPadding ->
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                EditorMainContent(
-                    webView = webView,
-                    onWebViewCreated = { webView = it },
-                    htmlContent = htmlContent,
-                    onContentChanged = { viewModel.updateContent(it) },
-                    onInsertImage = { imagePickerLauncher.launch("image/*") }
-                )
+            key(chapterId) {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    EditorMainContent(
+                        webView = webView,
+                        onWebViewCreated = { webView = it },
+                        htmlContent = htmlContent,
+                        onContentChanged = { viewModel.updateContent(it) },
+                        onInsertImage = { imagePickerLauncher.launch("image/*") }
+                    )
+                }
             }
         }
     }
@@ -365,7 +369,6 @@ private fun EditorMainContent(
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = true
                     settings.allowContentAccess = true
-                    // Add a default background to the view before HTML loads
                     setBackgroundColor(android.graphics.Color.parseColor("#0F1318"))
                     
                     addJavascriptInterface(object {
@@ -376,7 +379,6 @@ private fun EditorMainContent(
                     }, "Android")
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String) {
-                            // Load initial content if available
                             if (htmlContent.isNotEmpty()) {
                                 val escaped = htmlContent
                                     .replace("\\", "\\\\")
@@ -391,12 +393,7 @@ private fun EditorMainContent(
                 }
             },
             update = { view ->
-                // Fallback: If htmlContent arrives after onPageFinished, or if switching chapters
-                // We could use a tagging system to avoid unnecessary updates if needed
-                // For now, if WebView is empty but htmlContent is not, push it.
                 if (htmlContent.isNotEmpty()) {
-                    // Only push if the webview is likely empty (this is a simple heuristic)
-                    // In a production app, we'd use a more robust way to sync.
                     val escaped = htmlContent
                         .replace("\\", "\\\\")
                         .replace("'", "\\'")
