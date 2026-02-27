@@ -558,7 +558,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 </style>
 </head>
 <body>
-<div id="editor" contenteditable="true" spellcheck="false"></div>
+<div id="editor" contenteditable="true" spellcheck="true"></div>
 <script>
   var editor = document.getElementById('editor');
   var timer = null;
