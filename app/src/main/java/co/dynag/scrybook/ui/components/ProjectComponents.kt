@@ -1,12 +1,13 @@
 package co.dynag.scrybook.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,13 +24,16 @@ fun ProjectDrawerContent(
     chapitres: List<Chapitre>,
     onChapterOpen: (Long) -> Unit,
     onNewChapter: () -> Unit,
-    selectedId: Long? = null
+    selectedId: Long? = null,
+    onHeaderClick: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxHeight()) {
         // Drawer header
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().then(
+                if (onHeaderClick != null) Modifier.clickable { onHeaderClick() } else Modifier
+            )
         ) {
             Column(Modifier.padding(20.dp)) {
                 Text(
@@ -95,7 +99,8 @@ fun ProjectDrawerContent(
 fun SummaryPanel(
     title: String,
     resume: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEditClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.fillMaxHeight(),
@@ -103,12 +108,20 @@ fun SummaryPanel(
         tonalElevation = 1.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                if (onEditClick != null) {
+                    IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(12.dp))

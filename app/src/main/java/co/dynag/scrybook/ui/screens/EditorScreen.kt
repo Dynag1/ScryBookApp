@@ -62,6 +62,7 @@ fun EditorScreen(
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
     
     var showNewChapterDialog by remember { mutableStateOf(false) }
+    var showEditChapterDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     // Detection logic for permanent menu: Landscape OR Tablet (> 8 inches / sw600dp)
@@ -113,7 +114,8 @@ fun EditorScreen(
                         chapitres = chapitres,
                         onChapterOpen = { id -> onChapterOpen?.invoke(id) },
                         onNewChapter = { showNewChapterDialog = true },
-                        selectedId = chapterId
+                        selectedId = chapterId,
+                        onHeaderClick = { viewModel.saveNow(); onBack() }
                     )
                 }
             }
@@ -182,7 +184,8 @@ fun EditorScreen(
                         SummaryPanel(
                             title = stringResource(R.string.chapter_summary),
                             resume = chapitre?.resume ?: "",
-                            modifier = Modifier.width(250.dp)
+                            modifier = Modifier.width(250.dp),
+                            onEditClick = { showEditChapterDialog = true }
                         )
                     }
                 }
@@ -275,6 +278,33 @@ fun EditorScreen(
             },
             dismissButton = { TextButton(onClick = { showNewChapterDialog = false }) { Text(stringResource(R.string.action_cancel)) } }
         )
+    }
+
+    if (showEditChapterDialog) {
+        val ch = chapitre
+        if (ch != null) {
+            var editNom by remember(ch.id) { mutableStateOf(ch.nom) }
+            var editNum by remember(ch.id) { mutableStateOf(ch.numero) }
+            var editResume by remember(ch.id) { mutableStateOf(ch.resume) }
+            AlertDialog(
+                onDismissRequest = { showEditChapterDialog = false },
+                title = { Text(stringResource(R.string.chapter_edit_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(editNom, { editNom = it }, label = { Text(stringResource(R.string.chapter_title)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(editNum, { editNum = it }, label = { Text(stringResource(R.string.chapter_number)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(editResume, { editResume = it }, label = { Text(stringResource(R.string.chapter_summary)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        viewModel.updateChapitreInfo(ch.id, editNom, editNum, editResume)
+                        showEditChapterDialog = false
+                    }) { Text(stringResource(R.string.action_save)) }
+                },
+                dismissButton = { TextButton(onClick = { showEditChapterDialog = false }) { Text(stringResource(R.string.action_cancel)) } }
+            )
+        }
     }
 }
 

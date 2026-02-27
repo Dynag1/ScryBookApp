@@ -103,6 +103,18 @@ class EditorViewModel @Inject constructor(
         }
     }
 
+    fun updateChapitreInfo(id: Long, nom: String, numero: String, resume: String) {
+        viewModelScope.launch {
+            repository.updateChapitre(id, nom, numero, resume)
+            // Refresh
+            val ch = repository.getChapitre(id)
+            if (currentChapterId == id) {
+                _chapitre.value = ch
+            }
+            _chapitres.value = repository.getChapitres()
+        }
+    }
+
     private fun startAutoSave() {
         viewModelScope.launch {
             while (true) {

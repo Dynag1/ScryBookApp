@@ -88,7 +88,8 @@ fun ProjectScreen(
                     ProjectDrawerContent(
                         chapitres = chapitres,
                         onChapterOpen = { id -> onChapterOpen(id) },
-                        onNewChapter = { viewModel.showNewChapterDialog() }
+                        onNewChapter = { viewModel.showNewChapterDialog() },
+                        onHeaderClick = { onBack() }
                     )
                 }
             }
@@ -125,7 +126,8 @@ fun ProjectScreen(
                 SummaryPanel(
                     title = stringResource(R.string.nav_summary),
                     resume = info.resume,
-                    modifier = Modifier.width(300.dp)
+                    modifier = Modifier.width(300.dp),
+                    onEditClick = onInfoOpen
                 )
             }
         }
@@ -143,6 +145,10 @@ fun ProjectScreen(
                         onNewChapter = {
                             scope.launch { drawerState.close() }
                             viewModel.showNewChapterDialog()
+                        },
+                        onHeaderClick = {
+                            scope.launch { drawerState.close() }
+                            onBack()
                         }
                     )
                 }
