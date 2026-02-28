@@ -4,6 +4,16 @@
 
 Que vous soyez en train de rédiger votre premier roman ou de peaufiner une œuvre complexe, ScryBook vous offre une interface sans distraction avec tous les outils nécessaires à la gestion de votre projet littéraire.
 
+## 📱 Aperçu de l'interface
+
+<p align="center">
+  <img src="assets/screenshots/home.png" width="30%" />
+  <img src="assets/screenshots/project.png" width="65%" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/editor.png" width="95%" />
+</p>
+
 ## 🌟 Fonctionnalités Clés
 
 - **Éditeur Riche (WYSIWYG)** : Une interface d'écriture fluide avec support du gras, italique, titres (H1-H3), listes et insertion d'images.
