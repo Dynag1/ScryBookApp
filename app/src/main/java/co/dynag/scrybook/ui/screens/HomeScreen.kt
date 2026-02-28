@@ -61,32 +61,20 @@ fun HomeScreen(
         }
     }
 
-    // Permission launcher
-    val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // Android 13+ doesn't use READ_EXTERNAL_STORAGE for general files in the same way,
-        // but we might need specific ones for media. For .sb files, SAF is preferred.
-        null 
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
+    // Permission logic
     var showPermissionRationale by remember { mutableStateOf(false) }
 
-    val pLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
+    LaunchedEffect(Unit) {
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+        
+        if (!hasPermission) {
             showPermissionRationale = true
         } else {
             viewModel.scanForProjects()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        storagePermission?.let {
-            if (ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED) {
-                pLauncher.launch(it)
-            }
         }
     }
 
@@ -129,8 +117,8 @@ fun HomeScreen(
                     finalPath = destFile.absolutePath
                 }
 
-                if (finalPath != null && File(finalPath!!).exists()) {
-                    viewModel.addToRecent(finalPath!!)
+                if (finalPath != null && java.io.File(finalPath!!).exists()) {
+                    viewModel.addToRecent(finalPath!!, uri.toString())
                     onProjectOpen(finalPath!!)
                 }
             } catch (e: Exception) {
@@ -275,10 +263,23 @@ fun HomeScreen(
             confirmButton = {
                 Button(onClick = {
                     showPermissionRationale = false
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", context.packageName, null)
+                    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
                     }
-                    context.startActivity(intent)
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        // Fallback in case package data URI fails on some devices
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                           context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                        }
+                    }
                 }) { Text(stringResource(R.string.perm_settings)) }
             },
             dismissButton = {

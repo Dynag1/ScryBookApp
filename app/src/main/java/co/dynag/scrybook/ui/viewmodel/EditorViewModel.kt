@@ -108,6 +108,7 @@ class EditorViewModel @Inject constructor(
                     if (contentToSave != lastContent) {
                         _isSaving.value = true
                         repository.saveChapitreContenu(idToSave, contentToSave)
+                        repository.syncBack() // Propagation vers le fichier d'origine
                         lastContent = contentToSave
                         _isSaving.value = false
                     }

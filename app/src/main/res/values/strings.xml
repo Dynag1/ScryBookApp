@@ -99,7 +99,7 @@
     <string name="full_summary_word_count">%1$d mots</string>
     
     <!-- Permissions -->
-    <string name="perm_storage_title">Permission de stockage</string>
-    <string name="perm_storage_desc">ScryBook a besoin d\'accéder à vos fichiers pour ouvrir et enregistrer vos projets .sb dans le dossier choisi.</string>
-    <string name="perm_settings">Paramètres</string>
+    <string name="perm_storage_title">Accès aux fichiers</string>
+    <string name="perm_storage_desc">Pour enregistrer vos projets directement dans vos dossiers (Documents, Cloud, etc.) et éviter de perdre vos modifications, ScryBook a besoin de l\'autorisation "Accès à tous les fichiers".</string>
+    <string name="perm_settings">Ouvrir les Paramètres</string>
 </resources>

@@ -41,12 +41,17 @@ class HomeViewModel @Inject constructor(
         return prefs.getStringSet("recent_paths", emptySet()) ?: emptySet()
     }
 
-    fun addToRecent(path: String) {
+    private fun getUriForPath(path: String): String? {
+        return prefs.getString("uri_$path", null)
+    }
+
+    fun addToRecent(path: String, uri: String? = null) {
         val current = getRecentPaths().toMutableSet()
-        if (current.add(path)) {
-            prefs.edit().putStringSet("recent_paths", current).apply()
-            scanForProjects()
-        }
+        current.add(path)
+        val editor = prefs.edit().putStringSet("recent_paths", current)
+        if (uri != null) editor.putString("uri_$path", uri)
+        editor.apply()
+        scanForProjects()
     }
 
     /** Dossier par défaut: espace privé de l'appli — accessible sans aucune permission */
