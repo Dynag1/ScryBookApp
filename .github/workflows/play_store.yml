@@ -38,31 +38,41 @@ jobs:
           SECRET_CONTENT: ${{ secrets.PLAY_CONFIG_JSON }}
         run: |
           import os, json, base64, sys
-          content = os.environ.get('SECRET_CONTENT', '').strip()
+          raw_content = os.environ.get('SECRET_CONTENT', '')
+          content = raw_content.strip()
+          
           if not content:
               print("ERREUR : Le secret PLAY_CONFIG_JSON est vide !")
               sys.exit(1)
           
+          print(f"Diagnostic : Longueur={len(content)} caractères.")
+          print(f"Diagnostic : Commence par '{content[0]}' et finit par '{content[-1]}'")
+
           # 1. Essai en JSON direct
           try:
               data = json.loads(content)
               with open('service_account.json', 'w') as f:
                   json.dump(data, f)
-              print("JSON valide détecté.")
+              print("✅ JSON valide détecté.")
               sys.exit(0)
-          except Exception:
-              pass
+          except Exception as e:
+              print(f"Info : Pas un JSON direct ({str(e)[:50]}...)")
           
           # 2. Essai en Base64
           try:
-              decoded = base64.b64decode(content).decode('utf-8')
+              # On enlève les éventuels espaces/retours à la ligne internes du Base64
+              b64_data = "".join(content.split())
+              decoded = base64.b64decode(b64_data).decode('utf-8')
               data = json.loads(decoded)
               with open('service_account.json', 'w') as f:
                   json.dump(data, f)
-              print("Base64 valide détecté.")
+              print("✅ Base64 valide détecté.")
               sys.exit(0)
-          except Exception:
+          except Exception as e:
+              print(f"Info : Pas un Base64 valide ({str(e)[:50]}...)")
+              print("--------------")
               print("ERREUR : Le secret n'est ni un JSON valide, ni un Base64 valide.")
+              print("CONSEIL : Utilisez la commande 'python3 -c ...' fournie par l'assistant pour générer le secret.")
               sys.exit(1)
 
       - name: Upload to Play Store
