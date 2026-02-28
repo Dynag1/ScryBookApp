@@ -5,6 +5,17 @@ Toutes les modifications notables apportées au projet **ScryBook** seront docum
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-02-28
+
+### Ajouté
+- **Gestionnaire de fichiers amélioré** : L'application travaille désormais sur le fichier d'origine (via résolution de chemin réel) au lieu d'utiliser des copies cache temporaires.
+- **Support des fichiers externes** : Amélioration de la persistance pour les fichiers ouverts depuis Google Drive, Nextcloud, etc. via copie dans le dossier permanent `/ScryBook`.
+- **Navigateur de dossiers** : Ajout d'une option "Parcourir" dans l'écran de création de projet pour choisir visuellement le dossier de destination.
+- **Documentation visuelle** : Intégration de captures d'écran réelles dans le README pour un meilleur aperçu de l'interface.
+
+### Corrigé
+- **Déploiement GitHub** : Correction de l'erreur JSON dans le pipeline de déploiement Play Store.
+
 ## [0.1.3] - 2026-02-28
 
 ### Ajouté

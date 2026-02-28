@@ -28,8 +28,9 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
+import android.os.Environment
 import android.provider.Settings
+import android.os.Build
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.ui.viewmodel.HomeViewModel
@@ -95,19 +96,63 @@ fun HomeScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val uri = result.data?.data ?: return@rememberLauncherForActivityResult
-            // Copy content:// to cache then open
+            // Attempt to resolve real path or copy to persistent storage
             try {
-                val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "project.sb"
-                val cacheFile = File(context.cacheDir, fileName)
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    cacheFile.outputStream().use { output -> input.copyTo(output) }
+                var finalPath: String? = null
+                
+                // 1. Try to see if it's a file URI
+                if (uri.scheme == "file") {
+                    finalPath = uri.path
+                } else {
+                    // 2. Try to resolve via content resolver (for some local providers)
+                    val projection = arrayOf("_data")
+                    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val columnIndex = cursor.getColumnIndex("_data")
+                            if (columnIndex != -1) {
+                                finalPath = cursor.getString(columnIndex)
+                            }
+                        }
+                    }
                 }
-                if (cacheFile.exists()) {
-                    viewModel.addToRecent(cacheFile.absolutePath)
-                    onProjectOpen(cacheFile.absolutePath)
+
+                // 3. Fallback: Copy to persistent ScryBook folder (NOT cache)
+                if (finalPath == null || !File(finalPath!!).exists()) {
+                    val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "project.sb"
+                    val destDir = File(viewModel.defaultProjectDir())
+                    destDir.mkdirs()
+                    val destFile = File(destDir, fileName)
+                    
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        destFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    finalPath = destFile.absolutePath
+                }
+
+                if (finalPath != null && File(finalPath!!).exists()) {
+                    viewModel.addToRecent(finalPath!!)
+                    onProjectOpen(finalPath!!)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    // Directory picker launcher
+    val directoryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            // Attempt to resolve real path from tree URI or just use a message
+            // DocumentTree URIs are hard to convert to absolute path.
+            // But we can try to guess or use a custom resolver.
+            // For now, let's just show a snackbar or update the field if we can.
+            // On many devices, it will return content://.../document/primary:Documents for example.
+            val decoded = Uri.decode(it.toString())
+            if (decoded.contains("primary:")) {
+                val subPath = decoded.substringAfter("primary:")
+                newProjectDir = File(Environment.getExternalStorageDirectory(), subPath).absolutePath
             }
         }
     }
@@ -196,7 +241,13 @@ fun HomeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(newProjectName, { newProjectName = it }, label = { Text(stringResource(R.string.project_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(newProjectDir, { newProjectDir = it }, label = { Text(stringResource(R.string.project_folder)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(newProjectDir, { newProjectDir = it }, label = { Text(stringResource(R.string.project_folder)) }, modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = { directoryPickerLauncher.launch(null) }) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = "Parcourir")
+                            }
+                        }
+                    )
                     TextButton(onClick = { newProjectDir = viewModel.defaultProjectDir() }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.FolderSpecial, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
