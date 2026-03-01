@@ -424,7 +424,7 @@ private fun EditorMainContent(
     val primaryColorHex = String.format("#%06X", (0xFFFFFF and primaryColor.toArgb()))
     val outlineColorHex = String.format("#%06X", (0xFFFFFF and outlineColor.toArgb()))
 
-    Column(modifier = Modifier.fillMaxSize().background(bgColor)) {
+    Column(modifier = Modifier.fillMaxSize().background(bgColor).imePadding()) {
         // Formatting toolbar
         FormattingToolbar(webView = webView, onInsertImage = onInsertImage)
 

@@ -125,7 +125,7 @@ private fun PlaceEditSheet(lieu: Lieu, onSave: (Long, String, String) -> Unit, o
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(16.dp).imePadding().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
