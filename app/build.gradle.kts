@@ -14,8 +14,8 @@ android {
         applicationId = "co.dynag.scrybook"
         minSdk = 26
         targetSdk = 35
-        versionCode = 21
-        versionName = "0.2.1"
+        versionCode = 22
+        versionName = "0.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

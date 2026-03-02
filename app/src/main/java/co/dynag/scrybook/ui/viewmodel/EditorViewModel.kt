@@ -33,6 +33,9 @@ class EditorViewModel @Inject constructor(
     private val _chapitres = MutableStateFlow<List<Chapitre>>(emptyList())
     val chapitres: StateFlow<List<Chapitre>> = _chapitres
 
+    private val _param = MutableStateFlow(co.dynag.scrybook.data.model.Param())
+    val param: StateFlow<co.dynag.scrybook.data.model.Param> = _param
+
     private val _htmlContent = MutableStateFlow("")
     val htmlContent: StateFlow<String> = _htmlContent
 
@@ -82,6 +85,8 @@ class EditorViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.openProject(projectPath)
+                _param.value = repository.getParam()
+
                 val ch = repository.getChapitre(chapterId)
                 _chapitre.value = ch
                 _htmlContent.value = ch?.contenuHtml ?: ""

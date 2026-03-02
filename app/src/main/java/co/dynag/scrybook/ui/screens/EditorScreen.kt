@@ -58,6 +58,7 @@ fun EditorScreen(
     val isSaving by viewModel.isSaving.collectAsState()
     val isTtsPlaying by viewModel.isTtsPlaying.collectAsState()
     val ttsReady by viewModel.ttsReady.collectAsState()
+    val param by viewModel.param.collectAsState()
 
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -198,7 +199,8 @@ fun EditorScreen(
                                 onWebViewCreated = { webView = it },
                                 htmlContent = htmlContent,
                                 onContentChanged = { viewModel.updateContent(it) },
-                                onInsertImage = { imagePickerLauncher.launch("image/*") }
+                                onInsertImage = { imagePickerLauncher.launch("image/*") },
+                                fontSize = param.taille
                             )
                         }
                         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -269,7 +271,8 @@ fun EditorScreen(
                         onWebViewCreated = { webView = it },
                         htmlContent = htmlContent,
                         onContentChanged = { viewModel.updateContent(it) },
-                        onInsertImage = { imagePickerLauncher.launch("image/*") }
+                        onInsertImage = { imagePickerLauncher.launch("image/*") },
+                        fontSize = param.taille
                     )
                 }
             }
@@ -412,7 +415,8 @@ private fun EditorMainContent(
     onWebViewCreated: (WebView) -> Unit,
     htmlContent: String,
     onContentChanged: (String) -> Unit,
-    onInsertImage: () -> Unit
+    onInsertImage: () -> Unit,
+    fontSize: String
 ) {
     val bgColor = MaterialTheme.colorScheme.background
     val onBgColor = MaterialTheme.colorScheme.onBackground
@@ -459,7 +463,7 @@ private fun EditorMainContent(
                             }
                         }
                     }
-                    loadDataWithBaseURL(null, getEditorHtml(bgColorHex, onBgColorHex, primaryColorHex, outlineColorHex), "text/html", "UTF-8", null)
+                    loadDataWithBaseURL(null, getEditorHtml(bgColorHex, onBgColorHex, primaryColorHex, outlineColorHex, fontSize), "text/html", "UTF-8", null)
                     onWebViewCreated(this)
                 }
             },
@@ -498,6 +502,7 @@ private fun FormattingToolbar(webView: WebView?, onInsertImage: () -> Unit) {
             
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
             
+            item { ToolbarIconButton(Icons.Default.FormatClear, "document.execCommand('removeFormat'); document.execCommand('formatBlock', false, '<p>');", webView) }
             item { ToolbarTextButton("T1", "document.execCommand('formatBlock', false, '<h1>');", webView) }
             item { ToolbarTextButton("T2", "document.execCommand('formatBlock', false, '<h2>');", webView) }
             
@@ -521,7 +526,6 @@ private fun FormattingToolbar(webView: WebView?, onInsertImage: () -> Unit) {
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
 
             item { ToolbarIconButton(Icons.Default.Image, "", webView, onClick = onInsertImage) }
-            item { ToolbarIconButton(Icons.Default.FormatClear, "document.execCommand('removeFormat');", webView) }
             
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
             
@@ -555,7 +559,7 @@ private fun ToolbarTextButton(label: String, jsCommand: String, webView: WebView
     }
 }
 
-private fun getEditorHtml(bgColor: String, textColor: String, accentColor: String, outlineColor: String): String = """
+private fun getEditorHtml(bgColor: String, textColor: String, accentColor: String, outlineColor: String, fontSize: String): String = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -564,7 +568,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: Georgia, serif;
-    font-size: 12px;
+    font-size: ${fontSize}px !important;
     line-height: 1.6;
     text-align: justify;
     background: $bgColor;
@@ -579,10 +583,15 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     caret-color: $accentColor;
     word-wrap: break-word;
   }
+  #editor * {
+    font-size: inherit;
+  }
   h1 { display: block; text-align: center; font-size: 20px !important; font-weight: normal; margin: 2em 0 1.5em; color: $accentColor; }
   h1 * { font-size: 20px !important; }
   h2 { display: block; text-align: left; font-size: 14px !important; font-weight: bold; text-decoration: underline; margin: 1em 0 0.5em; }
-  p { margin-bottom: 0.8em; }
+  h2 * { font-size: 14px !important; }
+  p { margin-bottom: 0.8em; font-size: ${fontSize}px !important; }
+  p * { font-size: ${fontSize}px !important; }
   ul, ol { margin-left: 20px; margin-bottom: 0.8em; }
   img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 4px; }
 </style>
