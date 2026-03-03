@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -147,6 +149,27 @@ fun SummaryPanel(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ScryBookBottomBar() {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val height = if (isLandscape) 80.dp else 40.dp
+    
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(height),
+        color = MaterialTheme.colorScheme.background,
+        tonalElevation = 1.dp
+    ) {
+        // Bar is empty but provides visual structure
+        Box(modifier = Modifier.fillMaxSize()) {
+            HorizontalDivider(
+                modifier = Modifier.align(Alignment.TopCenter),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
         }
     }
 }

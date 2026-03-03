@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Lieu
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.PlacesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +46,7 @@ fun PlacesScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
+        bottomBar = { ScryBookBottomBar() },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.newPlace() },

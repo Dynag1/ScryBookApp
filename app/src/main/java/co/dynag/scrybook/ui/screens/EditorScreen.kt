@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.ui.components.ProjectDrawerContent
 import co.dynag.scrybook.ui.components.SummaryPanel
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.EditorViewModel
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
@@ -194,7 +195,8 @@ fun EditorScreen(
                         },
                         onSave = { viewModel.saveNow() }
                     )
-                }
+                },
+                bottomBar = { ScryBookBottomBar() }
             ) { innerPadding ->
                 // Key the content on chapterId to force recreation when switching chapters
                 key(chapterId) {
@@ -268,7 +270,8 @@ fun EditorScreen(
                     },
                     onSave = { viewModel.saveNow() }
                 )
-            }
+            },
+            bottomBar = { ScryBookBottomBar() }
         ) { innerPadding ->
             key(chapterId) {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {

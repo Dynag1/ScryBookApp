@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +55,8 @@ fun SettingsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
-        }
+        },
+        bottomBar = { ScryBookBottomBar() }
     ) { padding ->
         Column(
             modifier = Modifier

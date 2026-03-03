@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Info
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.ProjectInfoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +53,8 @@ fun ProjectInfoScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
-        }
+        },
+        bottomBar = { ScryBookBottomBar() }
     ) { padding ->
         Column(
             modifier = Modifier

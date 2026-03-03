@@ -29,6 +29,7 @@ import co.dynag.scrybook.ui.viewmodel.ProjectViewModel
 import co.dynag.scrybook.ui.components.ProjectDrawerContent
 import co.dynag.scrybook.ui.components.SummaryPanel
 import kotlinx.coroutines.launch
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -331,6 +332,7 @@ private fun ProjectMainContent(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
+        bottomBar = { ScryBookBottomBar() },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNewChapter,

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Personnage
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.CharactersViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +48,7 @@ fun CharactersScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
+        bottomBar = { ScryBookBottomBar() },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.newCharacter() },

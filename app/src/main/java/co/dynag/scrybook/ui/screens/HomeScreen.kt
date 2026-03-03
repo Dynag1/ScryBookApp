@@ -34,6 +34,7 @@ import android.os.Build
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.ui.viewmodel.HomeViewModel
+import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,6 +163,7 @@ fun HomeScreen(
                 }
             )
         },
+        bottomBar = { ScryBookBottomBar() },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
