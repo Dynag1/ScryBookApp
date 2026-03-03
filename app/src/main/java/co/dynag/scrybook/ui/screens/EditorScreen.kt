@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -453,6 +455,16 @@ private fun EditorMainContent(
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = true
                     settings.allowContentAccess = true
+                    
+                    // Force dark mode if supported to fix contrast in system menus (spellcheck, etc.)
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                        val isDark = bgColor.red < 0.5f && bgColor.green < 0.5f && bgColor.blue < 0.5f 
+                        WebSettingsCompat.setForceDark(
+                            settings,
+                            if (isDark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+                        )
+                    }
+
                     setBackgroundColor(bgColor.toArgb())
                     
                     addJavascriptInterface(object {
@@ -577,6 +589,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="light dark">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {

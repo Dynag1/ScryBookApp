@@ -5,6 +5,12 @@ Toutes les modifications notables apportées au projet **ScryBook** seront docum
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-03-03
+
+### Corrigé
+- **Lisibilité de l'éditeur** : Correction d'un problème où le menu de correction automatique (spellcheck) s'affichait en noir sur noir.
+- **Thème système** : Passage à un thème XML MD3 DayNight pour une meilleure intégration des menus système en mode sombre.
+
 ## [0.2.4] - 2026-03-03
 
 ### Ajouté
