@@ -5,6 +5,12 @@ Toutes les modifications notables apportées au projet **ScryBook** seront docum
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-03-05
+
+### Ajouté
+- **Panneaux latéraux dynamiques (Paysage)** : En mode paysage, l'ouverture des personnages ou des lieux remplace désormais dynamiquement le panneau du résumé pour un meilleur gain d'espace.
+- **Navigation latérale** : Ajout d'un bouton de fermeture ("X") dans les panneaux de personnages et de lieux pour revenir rapidement au résumé du chapitre.
+
 ## [0.2.5] - 2026-03-03
 
 ### Corrigé
@@ -87,4 +93,4 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 - **Export PDF** : Première version de l'exportation du manuscrit au format PDF.
 
 ---
-*Dernière mise à jour : 3 mars 2026*
+*Dernière mise à jour : 5 mars 2026*

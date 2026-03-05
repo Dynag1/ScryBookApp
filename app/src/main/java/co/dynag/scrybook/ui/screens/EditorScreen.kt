@@ -44,6 +44,10 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 
+enum class SidePanelType {
+    SUMMARY, CHARACTERS, PLACES
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +75,8 @@ fun EditorScreen(
     
     var showNewChapterDialog by remember { mutableStateOf(false) }
     var showEditChapterDialog by remember { mutableStateOf(false) }
+    
+    var activeSidePanel by remember { mutableStateOf(SidePanelType.SUMMARY) }
 
     val configuration = LocalConfiguration.current
     // Detection logic for permanent menu: Landscape OR Tablet (> 8 inches / sw600dp)
@@ -156,8 +162,8 @@ fun EditorScreen(
                         chapitreNom = chapitre?.nom ?: "",
                         isSaving = isSaving,
                         onBack = { viewModel.saveNow(); onBack() },
-                        onCharactersOpen = onCharactersOpen,
-                        onPlacesOpen = onPlacesOpen,
+                        onCharactersOpen = { activeSidePanel = SidePanelType.CHARACTERS },
+                        onPlacesOpen = { activeSidePanel = SidePanelType.PLACES },
                         onToggleTts = { viewModel.toggleTts(htmlContent) },
                         isTtsPlaying = isTtsPlaying,
                         ttsReady = ttsReady,
@@ -214,12 +220,30 @@ fun EditorScreen(
                             )
                         }
                         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        SummaryPanel(
-                            title = stringResource(R.string.chapter_summary),
-                            resume = chapitre?.resume ?: "",
-                            modifier = Modifier.width(250.dp),
-                            onEditClick = { showEditChapterDialog = true }
-                        )
+                        Box(modifier = Modifier.width(300.dp)) {
+                            when (activeSidePanel) {
+                                SidePanelType.SUMMARY -> {
+                                    SummaryPanel(
+                                        title = stringResource(R.string.chapter_summary),
+                                        resume = chapitre?.resume ?: "",
+                                        modifier = Modifier.fillMaxSize(),
+                                        onEditClick = { showEditChapterDialog = true }
+                                    )
+                                }
+                                SidePanelType.CHARACTERS -> {
+                                    CharactersSidePanel(
+                                        projectPath = projectPath,
+                                        onClose = { activeSidePanel = SidePanelType.SUMMARY }
+                                    )
+                                }
+                                SidePanelType.PLACES -> {
+                                    PlacesSidePanel(
+                                        projectPath = projectPath,
+                                        onClose = { activeSidePanel = SidePanelType.SUMMARY }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

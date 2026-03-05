@@ -1,5 +1,6 @@
 package co.dynag.scrybook.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -84,6 +85,72 @@ fun CharactersScreen(
     }
 
     // Edit sheet
+    selected?.let { perso ->
+        CharacterEditSheet(
+            perso = perso,
+            onSave = { viewModel.save(it) },
+            onDismiss = { viewModel.select(null) }
+        )
+    }
+}
+
+@Composable
+fun CharactersSidePanel(
+    projectPath: String,
+    onClose: () -> Unit,
+    viewModel: CharactersViewModel = hiltViewModel()
+) {
+    val characters by viewModel.characters.collectAsState()
+    val selected by viewModel.selected.collectAsState()
+
+    LaunchedEffect(projectPath) { viewModel.load(projectPath) }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        // Mini top bar
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_cancel))
+            }
+            Text(
+                text = stringResource(R.string.nav_characters),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.newCharacter() }) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        if (characters.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.Group, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    Text(stringResource(R.string.characters_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(characters, key = { it.id }) { perso ->
+                    CharacterCard(
+                        perso = perso,
+                        onClick = { viewModel.select(perso) },
+                        onDelete = { viewModel.delete(perso.id) }
+                    )
+                }
+            }
+        }
+    }
+
     selected?.let { perso ->
         CharacterEditSheet(
             perso = perso,

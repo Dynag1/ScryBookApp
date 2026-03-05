@@ -1,5 +1,6 @@
 package co.dynag.scrybook.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -77,6 +78,72 @@ fun PlacesScreen(
                     )
                 }
                 item { Spacer(Modifier.height(80.dp)) }
+            }
+        }
+    }
+
+    selected?.let { lieu ->
+        PlaceEditSheet(
+            lieu = lieu,
+            onSave = { id, nom, desc -> viewModel.save(id, nom, desc) },
+            onDismiss = { viewModel.select(null) }
+        )
+    }
+}
+
+@Composable
+fun PlacesSidePanel(
+    projectPath: String,
+    onClose: () -> Unit,
+    viewModel: PlacesViewModel = hiltViewModel()
+) {
+    val places by viewModel.places.collectAsState()
+    val selected by viewModel.selected.collectAsState()
+
+    LaunchedEffect(projectPath) { viewModel.load(projectPath) }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        // Mini top bar
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_cancel))
+            }
+            Text(
+                text = stringResource(R.string.nav_places),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.newPlace() }) {
+                Icon(Icons.Default.AddLocationAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        if (places.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.Map, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    Text(stringResource(R.string.places_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(places, key = { it.id }) { lieu ->
+                    PlaceCard(
+                        lieu = lieu,
+                        onClick = { viewModel.select(lieu) },
+                        onDelete = { viewModel.delete(lieu.id) }
+                    )
+                }
             }
         }
     }
