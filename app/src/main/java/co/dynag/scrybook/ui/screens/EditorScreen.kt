@@ -84,24 +84,37 @@ fun EditorScreen(
     val isTablet = configuration.smallestScreenWidthDp >= 600
     val showPermanentUI = isLandscape || isTablet
 
-    // Launcher for image picker
+    // Launcher for image picker — resize then encode to Base64 and inject as data URI
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: android.net.Uri? ->
         uri?.let { selectedUri ->
             try {
-                val inputStream = context.contentResolver.openInputStream(selectedUri)
-                val imgDir = java.io.File(projectPath, "img")
-                if (!imgDir.exists()) imgDir.mkdirs()
-                val fileName = "img_${System.currentTimeMillis()}.jpg"
-                val destFile = java.io.File(imgDir, fileName)
-                inputStream?.use { input ->
-                    destFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
+                // 1. Décoder le bitmap depuis le flux
+                val original = context.contentResolver.openInputStream(selectedUri)?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream)
                 }
-                val path = destFile.absolutePath
-                webView?.evaluateJavascript("insertImage('$path');", null)
+                if (original != null) {
+                    // 2. Redimensionner si la largeur dépasse 1200px (proportionnel)
+                    val maxWidth = 1200
+                    val resized = if (original.width > maxWidth) {
+                        val ratio = maxWidth.toFloat() / original.width.toFloat()
+                        val newHeight = (original.height * ratio).toInt()
+                        android.graphics.Bitmap.createScaledBitmap(original, maxWidth, newHeight, true)
+                            .also { if (it !== original) original.recycle() }
+                    } else {
+                        original
+                    }
+                    // 3. Compresser en JPEG qualité 85 (comme l'appli bureau)
+                    val out = java.io.ByteArrayOutputStream()
+                    resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
+                    resized.recycle()
+                    // 4. Encoder en Base64 et injecter comme data URI
+                    val base64 = android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+                    val dataUri = "data:image/jpeg;base64,$base64"
+                    val escaped = dataUri.replace("\\", "\\\\").replace("'", "\\'")
+                    webView?.evaluateJavascript("insertImage('$escaped');", null)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -667,8 +680,8 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     document.execCommand('insertText', false, text + ' ');
   }
 
-  function insertImage(path) {
-    document.execCommand('insertHTML', false, '<img src="file://' + path + '">');
+  function insertImage(dataUri) {
+    document.execCommand('insertHTML', false, '<img src="' + dataUri + '">');
   }
 
   // Focus helper

@@ -5,6 +5,12 @@ Toutes les modifications notables apportées au projet **ScryBook** seront docum
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2026-03-09
+
+### Changé
+- **Images auto-contenues** : Les images insérées dans l'éditeur sont désormais encodées en Base64 et intégrées directement dans le fichier `.sb`. Plus aucun fichier image externe n'est créé sur le disque. Le projet est ainsi entièrement portable.
+- **Redimensionnement automatique** : Les images sont redimensionnées à 1200px de large maximum (proportionnel) et recompressées en JPEG 85% avant encodage, identique au comportement de l'application bureau.
+
 ## [0.2.6] - 2026-03-05
 
 ### Ajouté
@@ -93,4 +99,4 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 - **Export PDF** : Première version de l'exportation du manuscrit au format PDF.
 
 ---
-*Dernière mise à jour : 5 mars 2026*
+*Dernière mise à jour : 9 mars 2026*
