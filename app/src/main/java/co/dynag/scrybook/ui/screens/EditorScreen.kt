@@ -164,7 +164,11 @@ fun EditorScreen(
                         },
                         onNewChapter = { showNewChapterDialog = true },
                         selectedId = chapterId,
-                        onHeaderClick = { viewModel.saveNow(); onBack() }
+                        onHeaderClick = { viewModel.saveNow(); onBack() },
+                        onTitleClick = { title ->
+                            val escaped = title.replace("'", "\\'")
+                            webView?.evaluateJavascript("scrollToTitle('$escaped');", null)
+                        }
                     )
                 }
             }
@@ -682,6 +686,17 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 
   function insertImage(dataUri) {
     document.execCommand('insertHTML', false, '<img src="' + dataUri + '">');
+  }
+
+  function scrollToTitle(titleText) {
+    var h1s = document.getElementsByTagName('h1');
+    for (var i = 0; i < h1s.length; i++) {
+      var text = h1s[i].innerText || h1s[i].textContent;
+      if (text.trim() === titleText.trim()) {
+        h1s[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      }
+    }
   }
 
   // Focus helper

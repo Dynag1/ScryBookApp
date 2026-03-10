@@ -1,5 +1,6 @@
 package co.dynag.scrybook.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,8 +30,12 @@ fun ProjectDrawerContent(
     onChapterOpen: (Long) -> Unit,
     onNewChapter: () -> Unit,
     selectedId: Long? = null,
-    onHeaderClick: (() -> Unit)? = null
+    onHeaderClick: (() -> Unit)? = null,
+    onTitleClick: ((String) -> Unit)? = null
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Column(modifier = Modifier.fillMaxHeight()) {
         // Drawer header
         Surface(
@@ -57,32 +63,76 @@ fun ProjectDrawerContent(
         // Chapter list in drawer
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(chapitres, key = { it.id }) { chapitre ->
-                NavigationDrawerItem(
-                    icon = {
-                        Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                val isSelected = selectedId != null && selectedId == chapitre.id
+                
+                Column {
+                    NavigationDrawerItem(
+                        icon = {
+                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(
+                                    chapitre.numero.ifBlank { "—" },
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        },
+                        label = {
                             Text(
-                                chapitre.numero.ifBlank { "—" },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                chapitre.nom, 
+                                maxLines = 1, 
+                                overflow = TextOverflow.Ellipsis, 
+                                style = if (isSelected) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal
                             )
+                        },
+                        selected = isSelected,
+                        onClick = { onChapterOpen(chapitre.id) },
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+
+                    if (isSelected && isLandscape && chapitre.contenuHtml.isNotBlank()) {
+                        val titles = remember(chapitre.contenuHtml) {
+                            val regex = Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE)
+                            regex.findAll(chapitre.contenuHtml)
+                                .map { it.groupValues[1].replace(Regex("<[^>]*>"), "").trim() }
+                                .filter { it.isNotBlank() }
+                                .toList()
                         }
-                    },
-                    label = {
-                        val isSelected = selectedId != null && selectedId == chapitre.id
-                        Text(
-                            chapitre.nom, 
-                            maxLines = 1, 
-                            overflow = TextOverflow.Ellipsis, 
-                            style = if (isSelected) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal
-                        )
-                    },
-                    selected = selectedId != null && selectedId == chapitre.id,
-                    onClick = { onChapterOpen(chapitre.id) },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
+                        
+                        Column(modifier = Modifier.padding(start = 48.dp, bottom = 8.dp)) {
+                            titles.forEach { title ->
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .padding(vertical = 2.dp)
+                                        .clickable { onTitleClick?.invoke(title) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp))
+                                        )
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -100,7 +100,8 @@ fun ProjectScreen(
                         chapitres = chapitres,
                         onChapterOpen = { id -> onChapterOpen(id) },
                         onNewChapter = { viewModel.showNewChapterDialog() },
-                        onHeaderClick = { onBack() }
+                        onHeaderClick = { onBack() },
+                        onTitleClick = { _ -> /* No specific anchor navigation here yet, just open chapter */ }
                     )
                 }
             }
