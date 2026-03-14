@@ -18,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Chapitre
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
+import co.dynag.scrybook.ui.components.ScryBookMarkdown
 import co.dynag.scrybook.ui.viewmodel.ProjectViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +88,10 @@ private fun SummaryCard(chapitre: Chapitre) {
                 Text(chapitre.nom, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (chapitre.resume.isNotBlank()) {
-                Text(chapitre.resume, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ScryBookMarkdown(
+                    content = chapitre.resume,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             } else {
                 Text(
                     stringResource(R.string.full_summary_no_resume),

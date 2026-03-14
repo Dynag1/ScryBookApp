@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Lieu
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
+import co.dynag.scrybook.ui.components.ScryBookMarkdown
 import co.dynag.scrybook.ui.viewmodel.PlacesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,8 +176,10 @@ private fun PlaceCard(lieu: Lieu, onClick: () -> Unit, onDelete: () -> Unit) {
                 Text(lieu.nom.ifBlank { stringResource(R.string.place_unnamed) }, style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (lieu.desc.isNotBlank()) {
-                    Text(lieu.desc, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    ScryBookMarkdown(
+                        content = lieu.desc,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             IconButton(onClick = onDelete) {

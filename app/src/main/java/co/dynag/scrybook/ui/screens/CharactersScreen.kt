@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Personnage
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
+import co.dynag.scrybook.ui.components.ScryBookMarkdown
 import co.dynag.scrybook.ui.viewmodel.CharactersViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,8 +187,10 @@ private fun CharacterCard(perso: Personnage, onClick: () -> Unit, onDelete: () -
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
                 if (perso.descGlobal.isNotBlank()) {
-                    Text(perso.descGlobal, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    ScryBookMarkdown(
+                        content = perso.descGlobal,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             IconButton(onClick = onDelete) {

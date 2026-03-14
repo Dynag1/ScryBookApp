@@ -511,6 +511,9 @@ private fun EditorMainContent(
     onInsertImage: () -> Unit,
     fontSize: String
 ) {
+    var isH1Active by remember { mutableStateOf(false) }
+    var isH2Active by remember { mutableStateOf(false) }
+
     val bgColor = MaterialTheme.colorScheme.background
     val onBgColor = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -523,7 +526,12 @@ private fun EditorMainContent(
 
     Column(modifier = Modifier.fillMaxSize().background(bgColor).imePadding()) {
         // Formatting toolbar
-        FormattingToolbar(webView = webView, onInsertImage = onInsertImage)
+        FormattingToolbar(
+            webView = webView,
+            onInsertImage = onInsertImage,
+            isH1Active = isH1Active,
+            isH2Active = isH2Active
+        )
 
         // WebView editor
         AndroidView(
@@ -553,6 +561,14 @@ private fun EditorMainContent(
                         @JavascriptInterface
                         fun onContentChanged(html: String) {
                             onContentChanged(html)
+                        }
+
+                        @JavascriptInterface
+                        fun onFormatUpdate(h1: Boolean, h2: Boolean) {
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                isH1Active = h1
+                                isH2Active = h2
+                            }
                         }
                     }, "Android")
                     webViewClient = object : WebViewClient() {
@@ -585,7 +601,12 @@ private fun EditorMainContent(
 }
 
 @Composable
-private fun FormattingToolbar(webView: WebView?, onInsertImage: () -> Unit) {
+private fun FormattingToolbar(
+    webView: WebView?,
+    onInsertImage: () -> Unit,
+    isH1Active: Boolean,
+    isH2Active: Boolean
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp,
@@ -606,8 +627,14 @@ private fun FormattingToolbar(webView: WebView?, onInsertImage: () -> Unit) {
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
             
             item { ToolbarIconButton(Icons.Default.FormatClear, "document.execCommand('removeFormat'); document.execCommand('formatBlock', false, '<p>');", webView) }
-            item { ToolbarTextButton("T1", "document.execCommand('formatBlock', false, '<h1>');", webView) }
-            item { ToolbarTextButton("T2", "document.execCommand('formatBlock', false, '<h2>');", webView) }
+            item { 
+                val ts1 = if (isH1Active) "document.execCommand('formatBlock', false, '<p>');" else "document.execCommand('formatBlock', false, '<h1>');"
+                ToolbarTextButton("T1", ts1, webView, isH1Active) 
+            }
+            item { 
+                val ts2 = if (isH2Active) "document.execCommand('formatBlock', false, '<p>');" else "document.execCommand('formatBlock', false, '<h2>');"
+                ToolbarTextButton("T2", ts2, webView, isH2Active) 
+            }
             
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
             
@@ -652,11 +679,18 @@ private fun ToolbarIconButton(icon: androidx.compose.ui.graphics.vector.ImageVec
 }
 
 @Composable
-private fun ToolbarTextButton(label: String, jsCommand: String, webView: WebView?) {
+private fun ToolbarTextButton(label: String, jsCommand: String, webView: WebView?, isActive: Boolean = false) {
+    val activeContainerColor = MaterialTheme.colorScheme.primaryContainer
+    val activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    
     TextButton(
         onClick = { webView?.evaluateJavascript(jsCommand, null) },
         modifier = Modifier.height(36.dp).widthIn(min = 36.dp),
-        contentPadding = PaddingValues(0.dp)
+        contentPadding = PaddingValues(0.dp),
+        colors = ButtonDefaults.textButtonColors(
+            containerColor = if (isActive) activeContainerColor else androidx.compose.ui.graphics.Color.Transparent,
+            contentColor = if (isActive) activeContentColor else MaterialTheme.colorScheme.primary
+        )
     ) {
         Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
     }
@@ -716,6 +750,26 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
       Android.onContentChanged(editor.innerHTML);
     }, 500);
   });
+
+  function sendFormatUpdate() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    var node = sel.anchorNode;
+    var isH1 = false;
+    var isH2 = false;
+    while (node && node.id !== 'editor') {
+      if (node.nodeName && node.nodeName.toLowerCase() === 'h1') isH1 = true;
+      if (node.nodeName && node.nodeName.toLowerCase() === 'h2') isH2 = true;
+      node = node.parentNode;
+    }
+    if (window.Android && window.Android.onFormatUpdate) {
+        window.Android.onFormatUpdate(isH1, isH2);
+    }
+  }
+
+  document.addEventListener('selectionchange', sendFormatUpdate);
+  editor.addEventListener('click', sendFormatUpdate);
+  editor.addEventListener('keyup', sendFormatUpdate);
 
   function setContent(html) {
     editor.innerHTML = html;

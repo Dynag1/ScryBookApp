@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -157,6 +158,7 @@ fun SummaryPanel(
     onSave: (String) -> Unit
 ) {
     var editedResume by remember(resume) { mutableStateOf(resume) }
+    var isPreview by remember { mutableStateOf(false) }
     val isDirty = editedResume != resume
 
     Surface(
@@ -173,6 +175,22 @@ fun SummaryPanel(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
+                
+                // Mode Toggle
+                IconButton(
+                    onClick = { isPreview = !isPreview },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        if (isPreview) Icons.Default.Edit else Icons.Default.Visibility,
+                        contentDescription = if (isPreview) "Éditer" else "Aperçu",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(Modifier.width(8.dp))
+
                 if (isDirty) {
                     Button(
                         onClick = { onSave(editedResume) },
@@ -190,25 +208,35 @@ fun SummaryPanel(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = editedResume,
-                onValueChange = { editedResume = it },
-                modifier = Modifier.fillMaxSize(),
-                textStyle = MaterialTheme.typography.bodyMedium,
-                placeholder = {
-                    Text(
-                        stringResource(R.string.full_summary_no_resume),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            if (isPreview) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ScryBookMarkdown(
+                        content = editedResume.ifBlank { stringResource(R.string.full_summary_no_resume) },
+                        modifier = Modifier.fillMaxSize(),
+                        color = if (editedResume.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent
+                }
+            } else {
+                OutlinedTextField(
+                    value = editedResume,
+                    onValueChange = { editedResume = it },
+                    modifier = Modifier.fillMaxSize(),
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.full_summary_no_resume),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent
+                    )
                 )
-            )
+            }
         }
     }
 }

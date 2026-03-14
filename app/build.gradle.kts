@@ -14,8 +14,8 @@ android {
         applicationId = "co.dynag.scrybook"
         minSdk = 26
         targetSdk = 35
-        versionCode = 104
-        versionName = "0.0.12"
+        versionCode = 105
+        versionName = "0.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -113,6 +113,9 @@ dependencies {
 
     // Gson (sérialisation JSON)
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Markdown
+    implementation("com.github.jeziellago:compose-markdown:0.5.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

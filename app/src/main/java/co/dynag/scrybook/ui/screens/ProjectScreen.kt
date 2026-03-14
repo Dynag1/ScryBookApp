@@ -30,6 +30,7 @@ import co.dynag.scrybook.ui.viewmodel.ExportResult
 import co.dynag.scrybook.ui.viewmodel.ProjectViewModel
 import co.dynag.scrybook.ui.components.ProjectDrawerContent
 import co.dynag.scrybook.ui.components.SummaryPanel
+import co.dynag.scrybook.ui.components.ScryBookMarkdown
 import kotlinx.coroutines.launch
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import java.io.File
@@ -431,7 +432,11 @@ private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> 
             Column(modifier = Modifier.weight(1f)) {
                 Text(chapitre.nom, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (chapitre.resume.isNotBlank()) {
-                    Text(chapitre.resume, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
+                    ScryBookMarkdown(
+                        content = chapitre.resume,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
             IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
