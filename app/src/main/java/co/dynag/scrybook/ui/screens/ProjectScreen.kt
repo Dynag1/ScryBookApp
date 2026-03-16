@@ -31,6 +31,7 @@ import co.dynag.scrybook.ui.viewmodel.ProjectViewModel
 import co.dynag.scrybook.ui.components.ProjectDrawerContent
 import co.dynag.scrybook.ui.components.SummaryPanel
 import co.dynag.scrybook.ui.components.ScryBookMarkdown
+import co.dynag.scrybook.ui.components.MarkdownTextField
 import kotlinx.coroutines.launch
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import java.io.File
@@ -214,7 +215,13 @@ fun ProjectScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(newChapNom, { newChapNom = it }, label = { Text(stringResource(R.string.chapter_title)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(newChapNum, { newChapNum = it }, label = { Text(stringResource(R.string.chapter_number)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(newChapResume, { newChapResume = it }, label = { Text(stringResource(R.string.chapter_summary)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                    MarkdownTextField(
+                        value = newChapResume,
+                        onValueChange = { newChapResume = it },
+                        label = stringResource(R.string.chapter_summary),
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
             confirmButton = {
@@ -241,7 +248,13 @@ fun ProjectScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(editNom, { editNom = it }, label = { Text(stringResource(R.string.chapter_title)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(editNum, { editNum = it }, label = { Text(stringResource(R.string.chapter_number)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(editResume, { editResume = it }, label = { Text(stringResource(R.string.chapter_summary)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                    MarkdownTextField(
+                        value = editResume,
+                        onValueChange = { editResume = it },
+                        label = stringResource(R.string.chapter_summary),
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
             confirmButton = {

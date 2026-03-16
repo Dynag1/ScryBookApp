@@ -15,6 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Info
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
+import co.dynag.scrybook.ui.components.MarkdownTextField
 import co.dynag.scrybook.ui.viewmodel.ProjectInfoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,10 +107,10 @@ fun ProjectInfoScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            OutlinedTextField(
+            MarkdownTextField(
                 value = info.resume,
                 onValueChange = { viewModel.update(info.copy(resume = it)) },
-                label = { Text(stringResource(R.string.info_summary)) },
+                label = stringResource(R.string.info_summary),
                 leadingIcon = { Icon(Icons.Default.Description, null) },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth()

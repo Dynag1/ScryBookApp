@@ -33,6 +33,7 @@ import co.dynag.scrybook.R
 import co.dynag.scrybook.ui.components.ProjectDrawerContent
 import co.dynag.scrybook.ui.components.SummaryPanel
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
+import co.dynag.scrybook.ui.components.MarkdownTextField
 import co.dynag.scrybook.ui.viewmodel.EditorViewModel
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
@@ -351,7 +352,13 @@ fun EditorScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(newChapNom, { newChapNom = it }, label = { Text(stringResource(R.string.chapter_title)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(newChapNum, { newChapNum = it }, label = { Text(stringResource(R.string.chapter_number)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(newChapResume, { newChapResume = it }, label = { Text(stringResource(R.string.chapter_summary)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                    MarkdownTextField(
+                        value = newChapResume,
+                        onValueChange = { newChapResume = it },
+                        label = stringResource(R.string.chapter_summary),
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
             confirmButton = {
@@ -380,7 +387,13 @@ fun EditorScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(editNom, { editNom = it }, label = { Text(stringResource(R.string.chapter_title)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(editNum, { editNum = it }, label = { Text(stringResource(R.string.chapter_number)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(editResume, { editResume = it }, label = { Text(stringResource(R.string.chapter_summary)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                        MarkdownTextField(
+                            value = editResume,
+                            onValueChange = { editResume = it },
+                            label = stringResource(R.string.chapter_summary),
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 },
                 confirmButton = {
@@ -728,6 +741,10 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   #editor * {
     font-size: inherit;
   }
+  #editor p, #editor span, #editor font, #editor div {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
   h1 { display: block !important; text-align: center; font-size: ${h1Size}px !important; font-weight: normal; margin-top: 1em !important; margin-bottom: 0.5em !important; color: $accentColor; }
   h1 * { font-size: ${h1Size}px !important; }
   h2 { display: block !important; text-align: left; font-size: ${h2Size}px !important; font-weight: bold; text-decoration: underline; margin-top: 1em !important; margin-bottom: 0.5em !important; margin-left: 2em !important; }
@@ -744,11 +761,44 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   var editor = document.getElementById('editor');
   var timer = null;
 
+  function cleanHtml(html) {
+    if (!html) return '';
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var all = div.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (el.nodeType === 1) { // Element
+            el.removeAttribute('style');
+            el.removeAttribute('class');
+            if (el.tagName.toLowerCase() === 'font') {
+                el.removeAttribute('color');
+                el.removeAttribute('face');
+                el.removeAttribute('size');
+            }
+        }
+    }
+    return div.innerHTML;
+  }
+
   editor.addEventListener('input', function() {
     clearTimeout(timer);
     timer = setTimeout(function() {
-      Android.onContentChanged(editor.innerHTML);
+      var cleaned = cleanHtml(editor.innerHTML);
+      Android.onContentChanged(cleaned);
     }, 500);
+  });
+
+  editor.addEventListener('paste', function(e) {
+    e.preventDefault();
+    var html = (e.originalEvent || e).clipboardData.getData('text/html');
+    var text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    if (html) {
+        var cleaned = cleanHtml(html);
+        document.execCommand('insertHTML', false, cleaned);
+    } else {
+        document.execCommand('insertText', false, text);
+    }
   });
 
   function sendFormatUpdate() {
@@ -772,8 +822,9 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   editor.addEventListener('keyup', sendFormatUpdate);
 
   function setContent(html) {
-    editor.innerHTML = html;
+    editor.innerHTML = cleanHtml(html);
   }
+
 
   function insertTextAtCursor(text) {
     document.execCommand('insertText', false, text + ' ');

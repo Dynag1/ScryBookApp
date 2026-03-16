@@ -261,3 +261,73 @@ fun ScryBookBottomBar() {
         }
     }
 }
+
+@Composable
+fun MarkdownTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    minLines: Int = 3,
+    leadingIcon: (@Composable () -> Unit)? = null
+) {
+    var isPreview by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (leadingIcon != null) {
+                Box(contentAlignment = Alignment.Center) {
+                    leadingIcon()
+                }
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = { isPreview = !isPreview },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    if (isPreview) Icons.Default.Edit else Icons.Default.Visibility,
+                    contentDescription = if (isPreview) "Éditer" else "Aperçu",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        if (isPreview) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Box(modifier = Modifier.padding(12.dp)) {
+                    ScryBookMarkdown(content = value.ifBlank { "—" })
+                }
+            }
+        } else {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = minLines,
+                placeholder = { Text("Écrire en Markdown...") },
+                leadingIcon = leadingIcon
+            )
+        }
+    }
+}
+
+
