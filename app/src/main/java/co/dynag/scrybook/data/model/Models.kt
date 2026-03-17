@@ -32,7 +32,8 @@ data class Info(
     val stitre: String = "",
     val auteur: String = "",
     val date: String = "",
-    val resume: String = ""
+    val resume: String = "",
+    val couverture: String = ""
 )
 
 data class Param(

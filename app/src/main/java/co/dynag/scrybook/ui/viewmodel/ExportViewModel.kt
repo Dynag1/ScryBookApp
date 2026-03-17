@@ -129,8 +129,30 @@ class ExportViewModel @Inject constructor(
                     var yPos = pageHeight * 0.35f
                     drawCenteredText(titlePage.canvas, info.titre.ifBlank { "Sans titre" }, titlePaint, pageWidth.toFloat(), yPos)
                     if (info.stitre.isNotBlank()) {
-                        yPos += 50f
+                        yPos += 30f
                         drawCenteredText(titlePage.canvas, info.stitre, subtitlePaint, pageWidth.toFloat(), yPos)
+                    }
+
+                    if (info.couverture.isNotBlank()) {
+                        try {
+                            val pureBase64 = info.couverture.substringAfter(",")
+                            val decodedBytes = android.util.Base64.decode(pureBase64, android.util.Base64.DEFAULT)
+                            val bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                            if (bitmap != null) {
+                                val maxWidth = pageWidth * 0.5f
+                                val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
+                                val targetWidth = if (bitmap.width > maxWidth) maxWidth else bitmap.width.toFloat()
+                                val targetHeight = targetWidth * ratio
+                                yPos += 40f
+                                val xPos = (pageWidth - targetWidth) / 2f
+                                val rect = android.graphics.RectF(xPos, yPos, xPos + targetWidth, yPos + targetHeight)
+                                titlePage.canvas.drawBitmap(bitmap, null, rect, null)
+                                yPos += targetHeight + 20f
+                                bitmap.recycle()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                     drawCenteredText(titlePage.canvas, "Par " + info.auteur.ifBlank { "Auteur Inconnu" }, authorPaint, pageWidth.toFloat(), pageHeight - margin - 30f)
                     document.finishPage(titlePage)

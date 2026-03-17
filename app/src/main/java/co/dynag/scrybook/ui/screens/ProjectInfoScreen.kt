@@ -11,6 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Info
@@ -27,6 +31,31 @@ fun ProjectInfoScreen(
 ) {
     val info by viewModel.info.collectAsState()
     val saved by viewModel.saved.collectAsState()
+
+    val context = LocalContext.current
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { selectedUri ->
+            try {
+                val original = context.contentResolver.openInputStream(selectedUri)?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream)
+                }
+                if (original != null) {
+                    val maxWidth = 1000
+                    val ratio = original.height.toFloat() / original.width.toFloat()
+                    val targetHeight = (maxWidth * ratio).toInt()
+                    val resized = android.graphics.Bitmap.createScaledBitmap(original, maxWidth, targetHeight, true)
+                    val out = java.io.ByteArrayOutputStream()
+                    resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
+                    val base64 = android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+                    viewModel.update(info.copy(couverture = "data:image/jpeg;base64,$base64"))
+                    resized.recycle()
+                    original.recycle()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
 
     LaunchedEffect(projectPath) { viewModel.load(projectPath) }
 
@@ -91,6 +120,52 @@ fun ProjectInfoScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column(Modifier.padding(12.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    Text("Image de Couverture", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    if (info.couverture.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        val bitmap = remember(info.couverture) {
+                            try {
+                                val pureBase64 = info.couverture.substringAfter(",")
+                                val decodedBytes = android.util.Base64.decode(pureBase64, android.util.Base64.DEFAULT)
+                                android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                            } catch (e: Exception) { null }
+                        }
+                        if (bitmap != null) {
+                            androidx.compose.foundation.Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Couverture",
+                                modifier = Modifier.height(180.dp).fillMaxWidth(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                            )
+                        } else {
+                            Text("Image invalide", color = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        Spacer(Modifier.height(4.dp))
+                        Text("Aucune image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.height(36.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
+                            Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Choisir", style = MaterialTheme.typography.labelLarge)
+                        }
+                        if (info.couverture.isNotBlank()) {
+                            TextButton(onClick = { viewModel.update(info.copy(couverture = "")) }, modifier = Modifier.height(36.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Text("Supprimer", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+            }
             OutlinedTextField(
                 value = info.auteur,
                 onValueChange = { viewModel.update(info.copy(auteur = it)) },

@@ -15,7 +15,7 @@ class ScryBookDatabase(context: Context, dbPath: String) :
     SQLiteOpenHelper(context, dbPath, null, DB_VERSION) {
 
     companion object {
-        const val DB_VERSION = 2
+        const val DB_VERSION = 3
 
         // Table names
         const val TABLE_CHAPITRE = "chapitre"
@@ -73,7 +73,7 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS $TABLE_INFO (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                titre TEXT, stitre TEXT, auteur TEXT, date TEXT, resume TEXT
+                titre TEXT, stitre TEXT, auteur TEXT, date TEXT, resume TEXT, couverture TEXT
             )""")
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS $TABLE_PARAM (
@@ -90,6 +90,13 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         if (oldVersion < 2) {
             try {
                 db.execSQL("ALTER TABLE $TABLE_PARAM ADD COLUMN format TEXT DEFAULT 'A4'")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        if (oldVersion < 3) {
+            try {
+                db.execSQL("ALTER TABLE $TABLE_INFO ADD COLUMN couverture TEXT")
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -208,9 +215,9 @@ class ScryBookDatabase(context: Context, dbPath: String) :
     // ─── Info ─────────────────────────────────────────────────────────────────
 
     fun getInfo(): Info {
-        val cursor = readableDatabase.rawQuery("SELECT id, COALESCE(titre,''), COALESCE(stitre,''), COALESCE(auteur,''), COALESCE(date,''), COALESCE(resume,'') FROM $TABLE_INFO WHERE id=1", null)
+        val cursor = readableDatabase.rawQuery("SELECT id, COALESCE(titre,''), COALESCE(stitre,''), COALESCE(auteur,''), COALESCE(date,''), COALESCE(resume,''), COALESCE(couverture,'') FROM $TABLE_INFO WHERE id=1", null)
         return if (cursor.moveToFirst()) {
-            Info(cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5)).also { cursor.close() }
+            Info(cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5), cursor.getString(6)).also { cursor.close() }
         } else { cursor.close(); Info() }
     }
 
@@ -219,6 +226,7 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         val cv = ContentValues().apply {
             put("titre", info.titre); put("stitre", info.stitre)
             put("auteur", info.auteur); put("date", info.date); put("resume", info.resume)
+            put("couverture", info.couverture)
         }
         val rows = db.update(TABLE_INFO, cv, "id=1", null)
         if (rows == 0) { cv.put("id", 1L); db.insert(TABLE_INFO, null, cv) }
