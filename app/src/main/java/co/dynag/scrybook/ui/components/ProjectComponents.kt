@@ -7,10 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -25,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Chapitre
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 
 @Composable
 fun ProjectDrawerContent(
@@ -157,9 +156,9 @@ fun SummaryPanel(
     modifier: Modifier = Modifier,
     onSave: (String) -> Unit
 ) {
-    var editedResume by remember(resume) { mutableStateOf(resume) }
+    var editedState by remember(resume) { mutableStateOf(TextFieldValue(resume)) }
     var isPreview by remember { mutableStateOf(false) }
-    val isDirty = editedResume != resume
+    val isDirty = editedState.text != resume
 
     Surface(
         modifier = modifier.fillMaxHeight(),
@@ -193,7 +192,7 @@ fun SummaryPanel(
 
                 if (isDirty) {
                     Button(
-                        onClick = { onSave(editedResume) },
+                        onClick = { onSave(editedState.text) },
                         modifier = Modifier.height(32.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(8.dp)
@@ -211,31 +210,38 @@ fun SummaryPanel(
             if (isPreview) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     ScryBookMarkdown(
-                        content = editedResume.ifBlank { stringResource(R.string.full_summary_no_resume) },
+                        content = editedState.text.ifBlank { stringResource(R.string.full_summary_no_resume) },
                         modifier = Modifier.fillMaxSize(),
-                        color = if (editedResume.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                        color = if (editedState.text.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                 }
             } else {
-                OutlinedTextField(
-                    value = editedResume,
-                    onValueChange = { editedResume = it },
-                    modifier = Modifier.fillMaxSize(),
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.full_summary_no_resume),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent
+                Column(modifier = Modifier.fillMaxSize()) {
+                    MarkdownFormattingToolbar(
+                        state = editedState,
+                        onValueChange = { editedState = it },
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                )
+                    OutlinedTextField(
+                        value = editedState,
+                        onValueChange = { editedState = it },
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.full_summary_no_resume),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent
+                        )
+                    )
+                }
             }
         }
     }
@@ -318,15 +324,106 @@ fun MarkdownTextField(
                 }
             }
         } else {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = minLines,
-                placeholder = { Text("Écrire en Markdown...") },
-                leadingIcon = leadingIcon
-            )
+            var state by remember { mutableStateOf(TextFieldValue(value)) }
+            LaunchedEffect(value) {
+                if (value != state.text) {
+                    state = state.copy(text = value)
+                }
+            }
+            Column {
+                MarkdownFormattingToolbar(
+                    state = state,
+                    onValueChange = {
+                        state = it
+                        onValueChange(it.text)
+                    },
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                OutlinedTextField(
+                    value = state,
+                    onValueChange = {
+                        state = it
+                        onValueChange(it.text)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = minLines,
+                    placeholder = { Text("Écrire en Markdown...") },
+                    leadingIcon = leadingIcon
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun MarkdownFormattingToolbar(
+    state: androidx.compose.ui.text.input.TextFieldValue,
+    onValueChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        androidx.compose.foundation.lazy.LazyRow(
+            modifier = Modifier.padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            item { MarkdownToolbarButton(Icons.Default.FormatBold, "Gras") { onValueChange(applyMarkdownFormat(state, "**", "**")) } }
+            item { MarkdownToolbarButton(Icons.Default.FormatItalic, "Italique") { onValueChange(applyMarkdownFormat(state, "*", "*")) } }
+            item { MarkdownToolbarTextButton("T1") { onValueChange(applyLineMarkdown(state, "# ")) } }
+            item { MarkdownToolbarTextButton("T2") { onValueChange(applyLineMarkdown(state, "## ")) } }
+            item { MarkdownToolbarButton(Icons.Default.FormatListBulleted, "Liste") { onValueChange(applyLineMarkdown(state, "- ")) } }
+            item { MarkdownToolbarButton(Icons.Default.FormatQuote, "Citation") { onValueChange(applyLineMarkdown(state, "> ")) } }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownToolbarButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
+        Icon(icon, description, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun MarkdownToolbarTextButton(label: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.height(32.dp).widthIn(min = 32.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+fun applyMarkdownFormat(state: androidx.compose.ui.text.input.TextFieldValue, prefix: String, suffix: String): androidx.compose.ui.text.input.TextFieldValue {
+    val text = state.text
+    val selection = state.selection
+    val selectedText = text.substring(selection.start, selection.end)
+    val newText = text.replaceRange(selection.start, selection.end, "$prefix$selectedText$suffix")
+    val newSelection = androidx.compose.ui.text.TextRange(selection.start + prefix.length, selection.end + prefix.length)
+    return state.copy(text = newText, selection = newSelection)
+}
+
+fun applyLineMarkdown(state: androidx.compose.ui.text.input.TextFieldValue, prefix: String): androidx.compose.ui.text.input.TextFieldValue {
+    val text = state.text
+    val selection = state.selection
+    if (selection.collapsed) {
+        var lineStart = selection.start
+        while (lineStart > 0 && text[lineStart - 1] != '\n') {
+            lineStart--
+        }
+        val newText = text.replaceRange(lineStart, lineStart, prefix)
+        val newSelection = androidx.compose.ui.text.TextRange(selection.start + prefix.length)
+        return state.copy(text = newText, selection = newSelection)
+    } else {
+        val selectedText = text.substring(selection.start, selection.end)
+        val newText = text.replaceRange(selection.start, selection.end, "$prefix$selectedText")
+        val newSelection = androidx.compose.ui.text.TextRange(selection.start + prefix.length, selection.end + prefix.length)
+        return state.copy(text = newText, selection = newSelection)
     }
 }
 

@@ -20,8 +20,7 @@ fun ScryBookMarkdown(
     MarkdownText(
         markdown = content,
         modifier = modifier,
-        style = style,
-        color = color,
+        style = style.copy(color = color),
         fontResource = null, // Use default font
         maxLines = Int.MAX_VALUE
     )
