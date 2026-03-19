@@ -43,7 +43,8 @@ data class Param(
     val saveTime: String = "30",
     val langue: String = "system",
     val theme: String = "system",
-    val format: String = "A4"
+    val format: String = "A4",
+    val logoB64: String = ""
 )
 
 data class ProjectFile(

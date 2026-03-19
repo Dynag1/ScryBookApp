@@ -33,6 +33,7 @@ fun PlacesScreen(
 ) {
     val places by viewModel.places.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val isEtude = projectPath.endsWith(".sbe")
 
     LaunchedEffect(projectPath) { viewModel.load(projectPath) }
 
@@ -44,7 +45,7 @@ fun PlacesScreen(
                         Icon(Icons.Default.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
-                title = { Text(stringResource(R.string.nav_places), fontWeight = FontWeight.Bold) },
+                title = { Text(if (isEtude) "Sites" else stringResource(R.string.nav_places), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
@@ -100,6 +101,7 @@ fun PlacesSidePanel(
 ) {
     val places by viewModel.places.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val isEtude = projectPath.endsWith(".sbe")
 
     LaunchedEffect(projectPath) { viewModel.load(projectPath) }
 
@@ -113,7 +115,7 @@ fun PlacesSidePanel(
                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_cancel))
             }
             Text(
-                text = stringResource(R.string.nav_places),
+                text = if (isEtude) "Sites" else stringResource(R.string.nav_places),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)

@@ -307,6 +307,8 @@ private fun ProjectMainContent(
     onChapterEdit: (Chapitre) -> Unit,
     onChapterDelete: (Chapitre) -> Unit
 ) {
+    val isEtude = projectPath.endsWith(".sbe")
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -374,15 +376,19 @@ private fun ProjectMainContent(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item {
-                    FilterChip(false, onClick = onCharactersOpen,
-                        label = { Text(stringResource(R.string.nav_characters), maxLines = 1) },
-                        leadingIcon = { Icon(Icons.Default.Person, null, Modifier.size(16.dp)) })
+                if (!isEtude) {
+                    item {
+                        FilterChip(false, onClick = onCharactersOpen,
+                            label = { Text(stringResource(R.string.nav_characters), maxLines = 1) },
+                            leadingIcon = { Icon(Icons.Default.Person, null, Modifier.size(16.dp)) })
+                    }
                 }
                 item {
+                    val labelText = if (isEtude) "Sites" else stringResource(R.string.nav_places)
+                    val icon = if (isEtude) Icons.Default.Language else Icons.Default.Place
                     FilterChip(false, onClick = onPlacesOpen,
-                        label = { Text(stringResource(R.string.nav_places), maxLines = 1) },
-                        leadingIcon = { Icon(Icons.Default.Place, null, Modifier.size(16.dp)) })
+                        label = { Text(labelText, maxLines = 1) },
+                        leadingIcon = { Icon(icon, null, Modifier.size(16.dp)) })
                 }
                 item {
                     FilterChip(false, onClick = onFullSummaryOpen,

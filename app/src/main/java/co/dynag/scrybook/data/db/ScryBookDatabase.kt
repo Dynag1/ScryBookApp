@@ -47,6 +47,7 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
         super.onOpen(db)
         if (!db.isReadOnly) {
             try { db.execSQL("PRAGMA journal_mode=DELETE") } catch (e: Exception) {}
+            ensureSchema(db)
         }
     }
 
@@ -256,16 +257,17 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
 
     fun getParam(): Param {
         val cursor = readableDatabase.rawQuery(
-            "SELECT id, COALESCE(police,'serif'), COALESCE(taille,'16'), COALESCE(save_time,'30'), COALESCE(langue,'fr'), COALESCE(theme,'dark'), COALESCE(format, 'A4') FROM $TABLE_PARAM WHERE id=1", null)
+            "SELECT id, COALESCE(police,'serif'), COALESCE(taille,'16'), COALESCE(save_time,'30'), COALESCE(langue,'fr'), COALESCE(theme,'dark'), COALESCE(format_page, 'A4'), COALESCE(logo_b64,'') FROM $TABLE_PARAM WHERE id=1", null)
         return if (cursor.moveToFirst()) {
             Param(
-                cursor.getLong(0),
-                cursor.getString(1) ?: "serif",
-                cursor.getString(2) ?: "16",
-                cursor.getString(3) ?: "30",
-                cursor.getString(4) ?: "fr",
-                cursor.getString(5) ?: "dark",
-                cursor.getString(6) ?: "A4"
+                id = cursor.getLong(0),
+                police = cursor.getString(1) ?: "serif",
+                taille = cursor.getString(2) ?: "16",
+                saveTime = cursor.getString(3) ?: "30",
+                langue = cursor.getString(4) ?: "fr",
+                theme = cursor.getString(5) ?: "dark",
+                format = cursor.getString(6) ?: "A4",
+                logoB64 = cursor.getString(7) ?: ""
             ).also { cursor.close() }
         } else { cursor.close(); Param() }
     }
@@ -275,7 +277,8 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
         val cv = ContentValues().apply {
             put("police", param.police); put("taille", param.taille)
             put("save_time", param.saveTime); put("langue", param.langue)
-            put("theme", param.theme); put("format", param.format)
+            put("theme", param.theme); put("format_page", param.format)
+            put("logo_b64", param.logoB64)
         }
         val rows = db.update(TABLE_PARAM, cv, "id=1", null)
         if (rows == 0) { cv.put("id", 1L); db.insert(TABLE_PARAM, null, cv) }
@@ -303,5 +306,56 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
         }
         cursor.close()
         return array.toString()
+    }
+
+    private fun ensureSchema(db: SQLiteDatabase) {
+        try {
+            // 1. TABLE_CHAPITRE
+            val pragmaChap = db.rawQuery("PRAGMA table_info($TABLE_CHAPITRE)", null)
+            var hasContenuHtml = false
+            var hasContenu = false
+            while (pragmaChap.moveToNext()) {
+                val name = pragmaChap.getString(1)
+                if (name == "contenu_html") hasContenuHtml = true
+                if (name == "contenu") hasContenu = true
+            }
+            pragmaChap.close()
+            if (!hasContenuHtml) {
+                db.execSQL("ALTER TABLE $TABLE_CHAPITRE ADD COLUMN contenu_html TEXT DEFAULT ''")
+                if (hasContenu) {
+                    db.execSQL("UPDATE $TABLE_CHAPITRE SET contenu_html = contenu")
+                }
+            }
+
+            // 2. TABLE_PARAM
+            val pragmaParam = db.rawQuery("PRAGMA table_info($TABLE_PARAM)", null)
+            var hasFormat = false
+            var hasLogo = false
+            while (pragmaParam.moveToNext()) {
+                val name = pragmaParam.getString(1)
+                if (name == "format_page") hasFormat = true
+                if (name == "logo_b64") hasLogo = true
+            }
+            pragmaParam.close()
+            if (!hasFormat) {
+                db.execSQL("ALTER TABLE $TABLE_PARAM ADD COLUMN format_page TEXT DEFAULT 'A4'")
+            }
+            if (!hasLogo) {
+                db.execSQL("ALTER TABLE $TABLE_PARAM ADD COLUMN logo_b64 TEXT")
+            }
+
+            // 3. TABLE_INFO
+            val pragmaInfo = db.rawQuery("PRAGMA table_info($TABLE_INFO)", null)
+            var hasCouverture = false
+            while (pragmaInfo.moveToNext()) {
+                if (pragmaInfo.getString(1) == "couverture") { hasCouverture = true; break }
+            }
+            pragmaInfo.close()
+            if (!hasCouverture) {
+                db.execSQL("ALTER TABLE $TABLE_INFO ADD COLUMN couverture TEXT")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

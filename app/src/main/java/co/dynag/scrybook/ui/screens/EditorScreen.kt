@@ -75,6 +75,7 @@ fun EditorScreen(
 
     val prefs = remember { context.getSharedPreferences("scrybook_recent", android.content.Context.MODE_PRIVATE) }
     val isEtudeMode = prefs.getBoolean("mode_etude", false)
+    val isEtude = projectPath.endsWith(".sbe")
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
     
     var showNewChapterDialog by remember { mutableStateOf(false) }
@@ -184,8 +185,9 @@ fun EditorScreen(
                         chapitreNom = chapitre?.nom ?: "",
                         isSaving = isSaving,
                         onBack = { viewModel.saveNow(); onBack() },
-                        onCharactersOpen = { activeSidePanel = SidePanelType.CHARACTERS },
+                        onCharactersOpen = if (!isEtude) { { activeSidePanel = SidePanelType.CHARACTERS } } else null,
                         onPlacesOpen = { activeSidePanel = SidePanelType.PLACES },
+                        isEtude = isEtude,
                         onToggleTts = { viewModel.toggleTts(htmlContent) },
                         isTtsPlaying = isTtsPlaying,
                         ttsReady = ttsReady,
@@ -287,8 +289,9 @@ fun EditorScreen(
                     chapitreNom = chapitre?.nom ?: "",
                     isSaving = isSaving,
                     onBack = { viewModel.saveNow(); onBack() },
-                    onCharactersOpen = onCharactersOpen,
+                    onCharactersOpen = if (!isEtude) { { activeSidePanel = SidePanelType.CHARACTERS } } else null,
                     onPlacesOpen = onPlacesOpen,
+                    isEtude = isEtude,
                     onToggleTts = { viewModel.toggleTts(htmlContent) },
                     isTtsPlaying = isTtsPlaying,
                     ttsReady = ttsReady,
@@ -460,7 +463,8 @@ private fun EditorTopAppBar(
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onEditMetadata: () -> Unit,
-    onSaveAsTemplate: (() -> Unit)? = null
+    onSaveAsTemplate: (() -> Unit)? = null,
+    isEtude: Boolean = false
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -507,7 +511,10 @@ private fun EditorTopAppBar(
             }
             onPlacesOpen?.let {
                 IconButton(onClick = it) {
-                    Icon(Icons.Default.Place, contentDescription = stringResource(R.string.nav_places))
+                    Icon(
+                        if (isEtude) Icons.Default.Language else Icons.Default.Place,
+                        contentDescription = if (isEtude) "Sites" else stringResource(R.string.nav_places)
+                    )
                 }
             }
             IconButton(onClick = onToggleTts, enabled = ttsReady) {

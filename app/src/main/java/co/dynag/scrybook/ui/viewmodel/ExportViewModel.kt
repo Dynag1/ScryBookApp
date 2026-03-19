@@ -90,6 +90,26 @@ class ExportViewModel @Inject constructor(
                         textSize = 9f; isAntiAlias = true
                     }
 
+                    val isEtude = projectPath.endsWith(".sbe")
+                    val logoDecoded = if (param.logoB64.isNotBlank()) {
+                        try {
+                            val decoded = android.util.Base64.decode(param.logoB64, android.util.Base64.DEFAULT)
+                            android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.size)
+                        } catch (e: Exception) { null }
+                    } else null
+
+                    val drawHeaderLogo: (android.graphics.Canvas) -> Unit = { canvas ->
+                        if (isEtude) {
+                            logoDecoded?.let { logo ->
+                            val logoWidth = 40f
+                            val logoRatio = logo.height.toFloat() / logo.width.toFloat()
+                            val logoHeight = logoWidth * logoRatio
+                            val rect = android.graphics.RectF(margin, margin - 30f, margin + logoWidth, margin - 30f + logoHeight)
+                            canvas.drawBitmap(logo, null, rect, null)
+                        }
+                        }
+                    }
+
                     // --- Phase 1 : Calcul des numéros de page pour le Sommaire ---
                     // Page 1: Titre
                     // Page 2: Sommaire (1 page reservée)
@@ -133,6 +153,17 @@ class ExportViewModel @Inject constructor(
                         drawCenteredText(titlePage.canvas, info.stitre, subtitlePaint, pageWidth.toFloat(), yPos)
                     }
 
+                    logoDecoded?.let { logo ->
+                        val targetWidth = pageWidth * 0.25f
+                        val logoRatio = logo.height.toFloat() / logo.width.toFloat()
+                        val targetHeight = targetWidth * logoRatio
+                        yPos += 40f
+                        val xLogo = (pageWidth - targetWidth) / 2f
+                        val rect = android.graphics.RectF(xLogo, yPos, xLogo + targetWidth, yPos + targetHeight)
+                        titlePage.canvas.drawBitmap(logo, null, rect, null)
+                        yPos += targetHeight + 20f
+                    }
+
                     if (info.couverture.isNotBlank()) {
                         try {
                             val pureBase64 = info.couverture.substringAfter(",")
@@ -161,6 +192,7 @@ class ExportViewModel @Inject constructor(
                     // 2. Sommaire
                     val tocPageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create()
                     val tocPage = document.startPage(tocPageInfo)
+                    drawHeaderLogo(tocPage.canvas)
                     yPos = margin + 20f
                     drawCenteredText(tocPage.canvas, "Sommaire", titlePaint, pageWidth.toFloat(), yPos)
                     yPos += 60f
@@ -191,6 +223,7 @@ class ExportViewModel @Inject constructor(
                         
                         var page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                         var canvas = page.canvas
+                        drawHeaderLogo(canvas)
                         
                         // Header
                         canvas.drawText(chapitre.nom, pageWidth / 2f - headerPaint.measureText(chapitre.nom) / 2f, margin - 15f, headerPaint)
@@ -210,6 +243,7 @@ class ExportViewModel @Inject constructor(
                                 docPageNumber++
                                 page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                                 canvas = page.canvas
+                                drawHeaderLogo(canvas)
                                 canvas.drawText(chapitre.nom, pageWidth / 2f - headerPaint.measureText(chapitre.nom) / 2f, margin - 15f, headerPaint)
                                 yPos = margin + 20f
                             }
@@ -247,6 +281,7 @@ class ExportViewModel @Inject constructor(
                         is String -> FileOutputStream(File(output))
                         else -> null
                     }
+                    logoDecoded?.recycle()
                     os?.use { document.writeTo(it) }
                     document.close()
                 }
@@ -286,6 +321,26 @@ class ExportViewModel @Inject constructor(
                     val titlePaint = TextPaint().apply { color = Color.BLACK; typeface = Typeface.create(selectedTypeface, Typeface.BOLD); textSize = 20f; isAntiAlias = true }
                     val headerPaint = TextPaint().apply { color = Color.GRAY; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textSize = 9f; isAntiAlias = true }
 
+                    val isEtude = projectPath.endsWith(".sbe")
+                    val logoDecoded = if (param.logoB64.isNotBlank()) {
+                        try {
+                            val decoded = android.util.Base64.decode(param.logoB64, android.util.Base64.DEFAULT)
+                            android.graphics.BitmapFactory.decodeByteArray(decoded, 0, decoded.size)
+                        } catch (e: Exception) { null }
+                    } else null
+
+                    val drawHeaderLogo: (android.graphics.Canvas) -> Unit = { canvas ->
+                        if (isEtude) {
+                            logoDecoded?.let { logo ->
+                            val logoWidth = 40f
+                            val logoRatio = logo.height.toFloat() / logo.width.toFloat()
+                            val logoHeight = logoWidth * logoRatio
+                            val rect = android.graphics.RectF(margin, margin - 30f, margin + logoWidth, margin - 30f + logoHeight)
+                            canvas.drawBitmap(logo, null, rect, null)
+                        }
+                        }
+                    }
+
                     val content = getHtmlContent(chapitre.contenuHtml, contentWidth)
                     val layout = StaticLayout.Builder.obtain(content, 0, content.length, bodyPaint, contentWidth)
                         .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.2f).build()
@@ -294,6 +349,7 @@ class ExportViewModel @Inject constructor(
                     var pNum = 1
                     var page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pNum).create())
                     var canvas = page.canvas
+                    drawHeaderLogo(canvas)
                     var yP = margin + 40f
                     drawCenteredText(canvas, chapitre.nom, titlePaint, pageWidth.toFloat(), yP)
                     yP += 60f
@@ -306,6 +362,7 @@ class ExportViewModel @Inject constructor(
                             pNum++
                             page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pNum).create())
                             canvas = page.canvas
+                            drawHeaderLogo(canvas)
                             yP = margin + 20f
                         }
                         drawLayoutLine(canvas, layout, i, margin, yP)
@@ -319,6 +376,7 @@ class ExportViewModel @Inject constructor(
                         is String -> FileOutputStream(File(output))
                         else -> null
                     }
+                    logoDecoded?.recycle()
                     os?.use { document.writeTo(it) }
                     document.close()
                 }

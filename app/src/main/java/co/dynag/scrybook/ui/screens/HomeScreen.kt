@@ -263,11 +263,9 @@ fun HomeScreen(
                             }
                         }
                     )
-                    if (isEtudeModeEnabled) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Checkbox(checked = isEtudeState, onCheckedChange = { isEtudeState = it })
-                            Text("Créer comme étude (charge le modèle)")
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Checkbox(checked = isEtudeState, onCheckedChange = { isEtudeState = it })
+                        Text("Créer comme étude (Fichier .sbe)")
                     }
                     TextButton(onClick = { newProjectDir = viewModel.defaultProjectDir() }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.FolderSpecial, null, modifier = Modifier.size(16.dp))

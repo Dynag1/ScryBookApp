@@ -16,6 +16,16 @@ import co.dynag.scrybook.R
 import co.dynag.scrybook.ui.components.ScryBookBottomBar
 import co.dynag.scrybook.ui.viewmodel.SettingsViewModel
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
+import androidx.compose.ui.Alignment
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -23,8 +33,23 @@ fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val param by viewModel.param.collectAsState()
     val saved by viewModel.saved.collectAsState()
+
+    val logoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
+                bytes?.let {
+                    val b64 = Base64.encodeToString(bytes, Base64.DEFAULT)
+                    viewModel.update(param.copy(logoB64 = b64))
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
 
     LaunchedEffect(projectPath) { viewModel.load(projectPath) }
 
@@ -158,6 +183,25 @@ fun SettingsScreen(
                         label = { Text(label) }
                     )
                 }
+            }
+
+            Divider()
+
+            Text("Logo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (param.logoB64.isNotBlank()) {
+                val bitmap = try {
+                    val imageBytes = Base64.decode(param.logoB64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+                bitmap?.let {
+                    Image(bitmap = it.asImageBitmap(), contentDescription = "Logo", modifier = Modifier.size(100.dp))
+                }
+            }
+            Button(onClick = { logoPickerLauncher.launch("image/*") }) {
+                Text("Sélectionner un logo")
             }
 
             Spacer(Modifier.height(16.dp))
