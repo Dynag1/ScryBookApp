@@ -91,7 +91,24 @@ class MainActivity : ComponentActivity() {
 
         // content:// scheme — copy to persistent storage
         try {
-            val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "project.sb"
+            var fileName = "project.sb"
+            try {
+                contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx != -1) fileName = cursor.getString(idx) ?: "project.sb"
+                    }
+                }
+            } catch (e: Exception) {}
+
+            if (!fileName.endsWith(".sb") && !fileName.endsWith(".sbe")) {
+                val lastSegment = uri.lastPathSegment?.substringAfterLast('/') ?: ""
+                if (lastSegment.endsWith(".sb") || lastSegment.endsWith(".sbe")) {
+                    fileName = lastSegment
+                } else {
+                    fileName = if (fileName.contains(".")) fileName.substringBeforeLast(".") + ".sb" else "$fileName.sb"
+                }
+            }
             val destDir = File(getExternalFilesDir("ScryBook"), "")
             destDir.mkdirs()
             val destFile = File(destDir, fileName)

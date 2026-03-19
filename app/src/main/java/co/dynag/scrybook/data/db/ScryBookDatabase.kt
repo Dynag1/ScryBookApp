@@ -79,7 +79,7 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS $TABLE_PARAM (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                police TEXT, taille TEXT, save_time TEXT, langue TEXT, theme TEXT, lic TEXT, format TEXT DEFAULT 'A4'
+                police TEXT, taille TEXT, save_time TEXT, langue TEXT, theme TEXT, lic TEXT, format_page TEXT DEFAULT 'A4', logo_b64 TEXT
             )""")
 
         // Insert default rows
@@ -256,18 +256,27 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
     // ─── Param ────────────────────────────────────────────────────────────────
 
     fun getParam(): Param {
-        val cursor = readableDatabase.rawQuery(
-            "SELECT id, COALESCE(police,'serif'), COALESCE(taille,'16'), COALESCE(save_time,'30'), COALESCE(langue,'fr'), COALESCE(theme,'dark'), COALESCE(format_page, 'A4'), COALESCE(logo_b64,'') FROM $TABLE_PARAM WHERE id=1", null)
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM $TABLE_PARAM WHERE id=1", null)
+        val idIdx = cursor.columnNames.indexOfFirst { it.equals("id", true) }
+        val polIdx = cursor.columnNames.indexOfFirst { it.equals("police", true) }
+        val taiIdx = cursor.columnNames.indexOfFirst { it.equals("taille", true) }
+        val savIdx = cursor.columnNames.indexOfFirst { it.equals("save_time", true) }
+        val lanIdx = cursor.columnNames.indexOfFirst { it.equals("langue", true) }
+        val thmIdx = cursor.columnNames.indexOfFirst { it.equals("theme", true) }
+        val fmtIdx = cursor.columnNames.indexOfFirst { it.equals("format_page", true) }
+        val logoIdx = cursor.columnNames.indexOfFirst { it.equals("logo_b64", true) }
+
         return if (cursor.moveToFirst()) {
             Param(
-                id = cursor.getLong(0),
-                police = cursor.getString(1) ?: "serif",
-                taille = cursor.getString(2) ?: "16",
-                saveTime = cursor.getString(3) ?: "30",
-                langue = cursor.getString(4) ?: "fr",
-                theme = cursor.getString(5) ?: "dark",
-                format = cursor.getString(6) ?: "A4",
-                logoB64 = cursor.getString(7) ?: ""
+                id = if (idIdx != -1) cursor.getLong(idIdx) else 1L,
+                police = if (polIdx != -1) cursor.getString(polIdx) ?: "serif" else "serif",
+                taille = if (taiIdx != -1) cursor.getString(taiIdx) ?: "16" else "16",
+                saveTime = if (savIdx != -1) cursor.getString(savIdx) ?: "30" else "30",
+                langue = if (lanIdx != -1) cursor.getString(lanIdx) ?: "fr" else "fr",
+                theme = if (thmIdx != -1) cursor.getString(thmIdx) ?: "dark" else "dark",
+                format = if (fmtIdx != -1) cursor.getString(fmtIdx) ?: "A4" else "A4",
+                logoB64 = if (logoIdx != -1) cursor.getString(logoIdx) ?: "" else ""
             ).also { cursor.close() }
         } else { cursor.close(); Param() }
     }
