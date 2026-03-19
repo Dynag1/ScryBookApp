@@ -5,6 +5,14 @@ Toutes les modifications notables apportées au projet **ScryBook** seront docum
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.17] - 2026-03-19
+
+### Ajouté
+- **Mode Étude** : Intégration de la fonction Étude comme option globale et support des fichiers `.sbe`. Capacité de sauvegarde de chapitres comme modèle (template).
+
+### Corrigé
+- **Export PDF** : Correction d'un problème avec le chargement d'images encodées en Base64 lors de l'exportation.
+
 ## [0.0.10] - 2026-03-09
 
 ### Changé

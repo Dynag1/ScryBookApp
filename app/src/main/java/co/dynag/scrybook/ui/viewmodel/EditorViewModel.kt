@@ -178,6 +178,13 @@ class EditorViewModel @Inject constructor(
         }
     }
 
+    fun saveAsTemplate() {
+        viewModelScope.launch {
+            saveNow()
+            repository.saveAsTemplate()
+        }
+    }
+
     override fun onCleared() {
         saveNow()
         tts?.shutdown()

@@ -19,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val repository: co.dynag.scrybook.data.repository.ScryBookRepository
 ) : ViewModel() {
 
     private val _projects = MutableStateFlow<List<ProjectFile>>(emptyList())
@@ -62,6 +63,12 @@ class HomeViewModel @Inject constructor(
         return dir.absolutePath
     }
 
+    fun isEtudeModeEnabled(): Boolean = prefs.getBoolean("mode_etude", false)
+
+    fun setEtudeModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("mode_etude", enabled).apply()
+    }
+
     fun scanForProjects() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -89,7 +96,7 @@ class HomeViewModel @Inject constructor(
                         try {
                             dir.walkTopDown()
                                 .maxDepth(8)
-                                .filter { it.isFile && it.extension == "sb" }
+                                .filter { it.isFile && (it.extension == "sb" || it.extension == "sbe") }
                                 .forEach { file ->
                                     if (found.none { it.path == file.absolutePath }) {
                                         val uri = getUriForPath(file.absolutePath)
@@ -126,7 +133,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun createProject(dirPath: String, name: String): String? {
+    fun createProject(dirPath: String, name: String, isEtude: Boolean = false): String? {
         return try {
             val dir = File(dirPath)
             if (!dir.exists()) {
@@ -135,8 +142,9 @@ class HomeViewModel @Inject constructor(
                     return null
                 }
             }
-            val file = File(dir, "$name.sb")
-            if (!file.exists()) file.createNewFile()
+            val ext = if (isEtude) "sbe" else "sb"
+            val file = File(dir, "$name.$ext")
+            repository.createProject(file.absolutePath, isEtude)
             addToRecent(file.absolutePath)
             file.absolutePath
         } catch (e: Exception) {

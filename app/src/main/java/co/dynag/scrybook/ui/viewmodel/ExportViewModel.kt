@@ -335,10 +335,10 @@ class ExportViewModel @Inject constructor(
         val cleaned = cleanHtmlForExport(html)
         return Html.fromHtml(cleaned, Html.FROM_HTML_MODE_COMPACT, { source ->
             try {
-                // Charge l'image depuis le dossier du projet
-                val imgFile = File(source)
-                if (imgFile.exists()) {
-                    val bitmap = android.graphics.BitmapFactory.decodeFile(imgFile.absolutePath)
+                if (source.startsWith("data:image/", ignoreCase = true) && source.contains("base64,")) {
+                    val base64Data = source.substringAfter("base64,")
+                    val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
                     if (bitmap != null) {
                         val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
                         val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
@@ -346,6 +346,19 @@ class ExportViewModel @Inject constructor(
                         val targetHeight = (targetWidth * ratio).toInt()
                         drawable.setBounds(0, 0, targetWidth, targetHeight)
                         return@fromHtml drawable
+                    }
+                } else {
+                    val imgFile = File(source)
+                    if (imgFile.exists()) {
+                        val bitmap = android.graphics.BitmapFactory.decodeFile(imgFile.absolutePath)
+                        if (bitmap != null) {
+                            val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+                            val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
+                            val targetWidth = if (bitmap.width > contentWidth) contentWidth else bitmap.width
+                            val targetHeight = (targetWidth * ratio).toInt()
+                            drawable.setBounds(0, 0, targetWidth, targetHeight)
+                            return@fromHtml drawable
+                        }
                     }
                 }
             } catch (e: Exception) {

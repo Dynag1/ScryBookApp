@@ -11,7 +11,7 @@ import co.dynag.scrybook.data.model.*
  * Keeps 100% compatibility with the .sb file format from the desktop app.
  * The .sb file IS the SQLite database file.
  */
-class ScryBookDatabase(context: Context, dbPath: String) :
+class ScryBookDatabase(private val context: Context, dbPath: String, private val isEtude: Boolean = false) :
     SQLiteOpenHelper(context, dbPath, null, DB_VERSION) {
 
     companion object {
@@ -24,8 +24,8 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         const val TABLE_INFO = "info"
         const val TABLE_PARAM = "param"
 
-        fun open(context: Context, dbPath: String): ScryBookDatabase {
-            return ScryBookDatabase(context, dbPath)
+        fun open(context: Context, dbPath: String, isEtude: Boolean = false): ScryBookDatabase {
+            return ScryBookDatabase(context, dbPath, isEtude)
         }
     }
 
@@ -84,6 +84,26 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         // Insert default rows
         db.execSQL("INSERT OR IGNORE INTO $TABLE_INFO (id, titre, auteur, date, resume) VALUES (1,'','','','')")
         db.execSQL("INSERT OR IGNORE INTO $TABLE_PARAM (id, police, taille, save_time, langue, theme) VALUES (1,'serif','16','30','fr','dark')")
+
+        if (isEtude) {
+            val prefs = context.getSharedPreferences("scrybook_recent", Context.MODE_PRIVATE)
+            val templateJson = prefs.getString("chapitres_auto", null)
+
+            if (!templateJson.isNullOrBlank()) {
+                try {
+                    val array = org.json.JSONArray(templateJson)
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val nom = obj.optString("nom", "")
+                        val numero = obj.optString("numero", "")
+                        val resume = obj.optString("resume", "")
+                        val contenuHtml = obj.optString("contenu_html", "")
+                        db.execSQL("INSERT INTO $TABLE_CHAPITRE (nom, numero, resume, contenu_html) VALUES (?, ?, ?, ?)", arrayOf(nom, numero, resume, contenuHtml))
+                    }
+                    return // Modèle correctement chargé, on sort !
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -268,5 +288,20 @@ class ScryBookDatabase(context: Context, dbPath: String) :
         } catch (e: Exception) {
             // Might fail if not in WAL mode, but it's okay.
         }
+    }
+
+    fun getChaptersAsJson(): String {
+        val array = org.json.JSONArray()
+        val cursor = readableDatabase.rawQuery("SELECT nom, numero, resume, contenu_html FROM $TABLE_CHAPITRE", null)
+        while (cursor.moveToNext()) {
+             val obj = org.json.JSONObject()
+             obj.put("nom", cursor.getString(0) ?: "")
+             obj.put("numero", cursor.getString(1) ?: "")
+             obj.put("resume", cursor.getString(2) ?: "")
+             obj.put("contenu_html", cursor.getString(3) ?: "")
+             array.put(obj)
+        }
+        cursor.close()
+        return array.toString()
     }
 }

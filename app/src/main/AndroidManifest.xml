@@ -40,6 +40,9 @@
                 <data android:pathPattern=".*\\.sb" />
                 <data android:pathPattern=".*\\..*\\.sb" />
                 <data android:pathPattern=".*\\..*\\..*\\.sb" />
+                <data android:pathPattern=".*\\.sbe" />
+                <data android:pathPattern=".*\\..*\\.sbe" />
+                <data android:pathPattern=".*\\..*\\..*\\.sbe" />
             </intent-filter>
 
             <!-- Broader match for content: URIs without path -->

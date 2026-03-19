@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
 
             // Otherwise, use the resolver which might copy it
             val path = resolveUri(uri)
-            if (path != null && path.endsWith(".sb")) {
+            if (path != null && (path.endsWith(".sb") || path.endsWith(".sbe"))) {
                 openFilePath.value = path
             }
         }

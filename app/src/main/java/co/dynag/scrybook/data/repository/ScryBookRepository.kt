@@ -69,9 +69,9 @@ class ScryBookRepository(private val context: Context) {
         currentPath = ""
     }
 
-    fun createProject(path: String) {
+    fun createProject(path: String, isEtude: Boolean = false) {
         dbHelper?.close()
-        dbHelper = ScryBookDatabase.open(context, path)
+        dbHelper = ScryBookDatabase.open(context, path, isEtude)
         currentPath = path
         dbHelper!!.writableDatabase // triggers onCreate
     }
@@ -172,5 +172,11 @@ class ScryBookRepository(private val context: Context) {
         dbHelper?.saveParam(param)
         syncBack()
         _currentParam.value = param
+    }
+
+    suspend fun saveAsTemplate() = withContext(Dispatchers.IO) {
+        val json = dbHelper?.getChaptersAsJson() ?: return@withContext
+        context.getSharedPreferences("scrybook_recent", Context.MODE_PRIVATE)
+            .edit().putString("chapitres_auto", json).apply()
     }
 }

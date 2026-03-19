@@ -72,6 +72,9 @@ fun EditorScreen(
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
     var isSttListening by remember { mutableStateOf(false) }
+
+    val prefs = remember { context.getSharedPreferences("scrybook_recent", android.content.Context.MODE_PRIVATE) }
+    val isEtudeMode = prefs.getBoolean("mode_etude", false)
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
     
     var showNewChapterDialog by remember { mutableStateOf(false) }
@@ -222,7 +225,11 @@ fun EditorScreen(
                         },
                         onSave = { viewModel.saveNow() },
                         onDelete = { showDeleteConfirmDialog = true },
-                        onEditMetadata = { showEditChapterDialog = true }
+                        onEditMetadata = { showEditChapterDialog = true },
+                        onSaveAsTemplate = if (isEtudeMode) { {
+                            viewModel.saveAsTemplate()
+                            android.widget.Toast.makeText(context, "Modèle enregistré !", android.widget.Toast.LENGTH_SHORT).show()
+                        } } else null
                     )
                 },
                 bottomBar = { ScryBookBottomBar() }
@@ -321,7 +328,11 @@ fun EditorScreen(
                     },
                     onSave = { viewModel.saveNow() },
                     onDelete = { showDeleteConfirmDialog = true },
-                    onEditMetadata = { showEditChapterDialog = true }
+                    onEditMetadata = { showEditChapterDialog = true },
+                    onSaveAsTemplate = if (isEtudeMode) { {
+                        viewModel.saveAsTemplate()
+                        android.widget.Toast.makeText(context, "Modèle enregistré !", android.widget.Toast.LENGTH_SHORT).show()
+                    } } else null
                 )
             },
             bottomBar = { ScryBookBottomBar() }
@@ -448,8 +459,11 @@ private fun EditorTopAppBar(
     onToggleStt: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
-    onEditMetadata: () -> Unit
+    onEditMetadata: () -> Unit,
+    onSaveAsTemplate: (() -> Unit)? = null
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     TopAppBar(
         navigationIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -509,6 +523,26 @@ private fun EditorTopAppBar(
                     contentDescription = stringResource(R.string.action_stt),
                     tint = if (isSttListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
+            }
+            onSaveAsTemplate?.let { onSaveAs ->
+                Box {
+                    IconButton(onClick = { showMenu = !showMenu }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Plus d'options")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Enregistrer comme modèle") },
+                            onClick = {
+                                showMenu = false
+                                onSaveAs()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Save, contentDescription = null) }
+                        )
+                    }
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)

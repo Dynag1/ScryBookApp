@@ -51,6 +51,7 @@ fun HomeScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
     var newProjectDir by remember { mutableStateOf("") }
+    var isEtudeModeEnabled by remember { mutableStateOf(viewModel.isEtudeModeEnabled()) }
 
     LaunchedEffect(Unit) { newProjectDir = viewModel.defaultProjectDir() }
 
@@ -166,6 +167,33 @@ fun HomeScreen(
                     IconButton(onClick = { viewModel.scanForProjects() }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
                     }
+                    Box {
+                        var showMenu by remember { mutableStateOf(false) }
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Plus d'options")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(if (isEtudeModeEnabled) "Mode Étude activé" else "Activer Mode Étude") },
+                                onClick = {
+                                    val newVal = !isEtudeModeEnabled
+                                    viewModel.setEtudeModeEnabled(newVal)
+                                    isEtudeModeEnabled = newVal
+                                    showMenu = false
+                                },
+                                leadingIcon = { 
+                                    Icon(
+                                        Icons.Default.School, 
+                                        contentDescription = null,
+                                        tint = if (isEtudeModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    ) 
+                                }
+                            )
+                        }
+                    }
                 }
             )
         },
@@ -219,6 +247,8 @@ fun HomeScreen(
     }
 
     if (showCreateDialog) {
+        var isEtudeState by remember { mutableStateOf(false) }
+
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             icon = { Icon(Icons.Default.MenuBook, contentDescription = null) },
@@ -233,6 +263,12 @@ fun HomeScreen(
                             }
                         }
                     )
+                    if (isEtudeModeEnabled) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Checkbox(checked = isEtudeState, onCheckedChange = { isEtudeState = it })
+                            Text("Créer comme étude (charge le modèle)")
+                        }
+                    }
                     TextButton(onClick = { newProjectDir = viewModel.defaultProjectDir() }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.FolderSpecial, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
@@ -243,7 +279,7 @@ fun HomeScreen(
             confirmButton = {
                 Button(onClick = {
                     if (newProjectName.isNotBlank()) {
-                        val path = viewModel.createProject(newProjectDir, newProjectName)
+                        val path = viewModel.createProject(newProjectDir, newProjectName, isEtudeState)
                         if (path != null) { showCreateDialog = false; newProjectName = ""; onProjectOpen(path) }
                     }
                 }) { Text(stringResource(R.string.action_create)) }
