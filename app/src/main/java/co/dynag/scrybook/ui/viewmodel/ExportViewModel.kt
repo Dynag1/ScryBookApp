@@ -49,12 +49,8 @@ class ExportViewModel @Inject constructor(
                     val chapitres = repository.getChapitres()
                     val param = repository.getParam()
 
-                    val (pageWidth, pageHeight) = when (param.format) {
-                        "A5" -> 420 to 595
-                        "Poche" -> 312 to 510 // 11x18 cm ~ 312x510 points
-                        else -> 595 to 842 // A4
-                    }
-                    val margin = if (param.format == "Poche") 40f else 56f
+                    val (pageWidth, pageHeight) = 794 to 1123 // A4 @ 96 DPI
+                    val margin = 76f // 2 cm
                     val contentWidth = pageWidth - (2 * margin).toInt()
                     val contentHeight = pageHeight - (2 * margin).toInt()
 
@@ -118,10 +114,10 @@ class ExportViewModel @Inject constructor(
                     val tocEntries = mutableListOf<Pair<String, Int>>()
                     
                     val chapterLayouts = chapitres.map { chapitre ->
-                        val formattedContent = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight)
+                        val formattedContent = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight, baseFontSize)
                         val layout = StaticLayout.Builder.obtain(formattedContent, 0, formattedContent.length, bodyPaint, contentWidth)
                             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                            .setLineSpacing(0f, 1.2f)
+                            .setLineSpacing(0f, 1.6f)
                             .build()
                         
                         tocEntries.add(chapitre.nom to currentPage)
@@ -129,12 +125,14 @@ class ExportViewModel @Inject constructor(
                         var yOffset = margin + 40f + 60f // Titre chapitre
                         var pagesInChapter = 1
                         for (i in 0 until layout.lineCount) {
+                            val spacing = getHeadingSpacing(layout, i, baseFontSize)
+                            yOffset += spacing.first // Margin Top
                             val lh = layout.getLineBottom(i) - layout.getLineTop(i)
                             if (yOffset + lh > pageHeight - margin) {
                                 pagesInChapter++
                                 yOffset = margin + 20f
                             }
-                            yOffset += lh
+                            yOffset += lh + spacing.second // Margin Bottom
                         }
                         currentPage += pagesInChapter
                         layout
@@ -235,12 +233,40 @@ class ExportViewModel @Inject constructor(
                         yPos += 60f
 
                         for (i in 0 until layout.lineCount) {
+                            val spacing = getHeadingSpacing(layout, i, baseFontSize)
+                            yPos += spacing.first // Margin Top
                             val lh = layout.getLineBottom(i) - layout.getLineTop(i)
+
+                            val lStart = layout.getLineStart(i)
+                            val lEnd = layout.getLineEnd(i)
+                            val spans = (layout.text as android.text.Spanned).getSpans(lStart, lEnd, android.text.style.ImageSpan::class.java)
+                            val hasImg = spans.isNotEmpty()
+
+                            if (hasImg) {
+                                val img = spans.first()
+                                val trueLh = img.drawable.bounds.height().toFloat()
+                                if (yPos + trueLh > pageHeight - margin) {
+                                    canvas.drawText((docPageNumber - 2).toString(), pageWidth - margin, pageHeight - margin / 2, headerPaint)
+                                    document.finishPage(page)
+                                    docPageNumber++
+                                    page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
+                                    canvas = page.canvas
+                                    drawHeaderLogo(canvas)
+                                    canvas.drawText(chapitre.nom, pageWidth / 2f - headerPaint.measureText(chapitre.nom) / 2f, margin - 15f, headerPaint)
+                                    yPos = margin + 20f
+                                }
+                                canvas.save()
+                                val xOff = (pageWidth - img.drawable.bounds.width()) / 2f
+                                canvas.translate(xOff, yPos)
+                                img.drawable.draw(canvas)
+                                canvas.restore()
+                                yPos += trueLh + spacing.second
+                                continue
+                            }
+
                             if (yPos + lh > pageHeight - margin) {
-                                // Footer
                                 canvas.drawText((docPageNumber - 2).toString(), pageWidth - margin, pageHeight - margin / 2, headerPaint)
                                 document.finishPage(page)
-                                
                                 docPageNumber++
                                 page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                                 canvas = page.canvas
@@ -249,7 +275,7 @@ class ExportViewModel @Inject constructor(
                                 yPos = margin + 20f
                             }
                             drawLayoutLine(canvas, layout, i, margin, yPos)
-                            yPos += lh
+                            yPos += lh + spacing.second // Margin Bottom
                         }
                         canvas.drawText((docPageNumber - 2).toString(), pageWidth - margin, pageHeight - margin / 2, headerPaint)
                         document.finishPage(page)
@@ -261,16 +287,18 @@ class ExportViewModel @Inject constructor(
                         val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                         drawCenteredText(page.canvas, "Résumé", chapterTitlePaint, pageWidth.toFloat(), margin + 40f)
                         yPos = margin + 100f
-                        val formattedResume = getHtmlContent(info.resume, contentWidth, contentHeight)
+                        val formattedResume = getHtmlContent(info.resume, contentWidth, contentHeight, baseFontSize)
                         val resLayout = StaticLayout.Builder.obtain(formattedResume, 0, formattedResume.length, bodyPaint, contentWidth)
                             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                            .setLineSpacing(0f, 1.2f)
+                            .setLineSpacing(0f, 1.6f)
                             .build()
                         for (i in 0 until resLayout.lineCount) {
+                            val spacing = getHeadingSpacing(resLayout, i, baseFontSize)
+                            yPos += spacing.first // Margin Top
                             val lh = resLayout.getLineBottom(i) - resLayout.getLineTop(i)
                             if (yPos + lh > pageHeight - margin) break
                             drawLayoutLine(page.canvas, resLayout, i, margin, yPos)
-                            yPos += lh
+                            yPos += lh + spacing.second // Margin Bottom
                         }
                         document.finishPage(page)
                         docPageNumber++
@@ -343,9 +371,9 @@ class ExportViewModel @Inject constructor(
                         }
                     }
 
-                    val content = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight)
+                    val content = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight, baseFontSize)
                     val layout = StaticLayout.Builder.obtain(content, 0, content.length, bodyPaint, contentWidth)
-                        .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.2f).build()
+                        .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.6f).build()
 
                     val document = PdfDocument()
                     var pNum = 1
@@ -357,7 +385,36 @@ class ExportViewModel @Inject constructor(
                     yP += 60f
 
                     for (i in 0 until layout.lineCount) {
+                        val spacing = getHeadingSpacing(layout, i, baseFontSize)
+                        yP += spacing.first // Margin Top
                         val lh = layout.getLineBottom(i) - layout.getLineTop(i)
+
+                        val lStart = layout.getLineStart(i)
+                        val lEnd = layout.getLineEnd(i)
+                        val spans = (layout.text as android.text.Spanned).getSpans(lStart, lEnd, android.text.style.ImageSpan::class.java)
+                        val hasImg = spans.isNotEmpty()
+
+                        if (hasImg) {
+                            val img = spans.first()
+                            val trueLh = img.drawable.bounds.height().toFloat()
+                            if (yP + trueLh > pageHeight - margin) {
+                                canvas.drawText(pNum.toString(), pageWidth - margin, pageHeight - margin/2, headerPaint)
+                                document.finishPage(page)
+                                pNum++
+                                page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pNum).create())
+                                canvas = page.canvas
+                                drawHeaderLogo(canvas)
+                                yP = margin + 20f
+                            }
+                            canvas.save()
+                            val xOff = (pageWidth - img.drawable.bounds.width()) / 2f
+                            canvas.translate(xOff, yP)
+                            img.drawable.draw(canvas)
+                            canvas.restore()
+                            yP += trueLh + spacing.second
+                            continue
+                        }
+
                         if (yP + lh > pageHeight - margin) {
                             canvas.drawText(pNum.toString(), pageWidth - margin, pageHeight - margin/2, headerPaint)
                             document.finishPage(page)
@@ -368,7 +425,7 @@ class ExportViewModel @Inject constructor(
                             yP = margin + 20f
                         }
                         drawLayoutLine(canvas, layout, i, margin, yP)
-                        yP += lh
+                        yP += lh + spacing.second // Margin Bottom
                     }
                     canvas.drawText(pNum.toString(), pageWidth - margin, pageHeight - margin/2, headerPaint)
                     document.finishPage(page)
@@ -391,7 +448,7 @@ class ExportViewModel @Inject constructor(
         }
     }
 
-    private fun getHtmlContent(html: String, contentWidth: Int, contentHeight: Int): CharSequence {
+    private fun getHtmlContent(html: String, contentWidth: Int, contentHeight: Int, baseFontSize: Float): CharSequence {
         val cleaned = cleanHtmlForExport(html)
         val imgAttrsMap = mutableMapOf<String, ImageAttrs>()
         val imgRegex = Regex("<img[^>]*src=\"([^\"]+)\"[^>]*>", RegexOption.IGNORE_CASE)
@@ -405,7 +462,7 @@ class ExportViewModel @Inject constructor(
             imgAttrsMap[src] = ImageAttrs(w, h, s)
         }
 
-        return Html.fromHtml(cleaned, Html.FROM_HTML_MODE_COMPACT, { source ->
+        val spanned = Html.fromHtml(cleaned, Html.FROM_HTML_MODE_COMPACT, { source ->
             try {
                 val bitmap = if (source.startsWith("data:image/", ignoreCase = true) && source.contains("base64,")) {
                     val base64Data = source.substringAfter("base64,")
@@ -432,25 +489,9 @@ class ExportViewModel @Inject constructor(
                                 targetHeight = (targetWidth * ratio).toInt()
                             } else {
                                 w.toIntOrNull()?.let { px ->
-                                    targetWidth = px
+                                    // Conversion 96 DPI (écran) -> 72 DPI (PDF) comme sur Bureau (* 0.75)
+                                    targetWidth = (px * 0.75f).toInt()
                                     targetHeight = (targetWidth * ratio).toInt()
-                                }
-                            }
-                        }
-                        if (targetWidth == bitmap.width) { // respect style if width not set
-                            attr.style?.let { s ->
-                                val styleWidthRegex = Regex("width:\\s*(\\d+(?:px|%))", RegexOption.IGNORE_CASE)
-                                styleWidthRegex.find(s)?.groups?.get(1)?.value?.let { w ->
-                                    if (w.endsWith("%")) {
-                                        val pct = w.dropLast(1).toFloatOrNull() ?: 100f
-                                        targetWidth = (contentWidth * pct / 100f).toInt()
-                                        targetHeight = (targetWidth * ratio).toInt()
-                                    } else if (w.endsWith("px")) {
-                                        w.dropLast(2).toIntOrNull()?.let { px ->
-                                            targetWidth = px
-                                            targetHeight = (targetWidth * ratio).toInt()
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -460,10 +501,8 @@ class ExportViewModel @Inject constructor(
                         targetWidth = contentWidth
                         targetHeight = (targetWidth * ratio).toInt()
                     }
-
-                    val maxDrawableHeight = contentHeight - 40
-                    if (targetHeight > maxDrawableHeight) {
-                        targetHeight = maxDrawableHeight
+                    if (targetHeight > contentHeight) {
+                        targetHeight = contentHeight
                         targetWidth = (targetHeight / ratio).toInt()
                     }
 
@@ -475,6 +514,32 @@ class ExportViewModel @Inject constructor(
             }
             null
         }, null)
+
+        if (spanned is android.text.Spannable) {
+            try {
+                val absSpans = spanned.getSpans(0, spanned.length, android.text.style.AbsoluteSizeSpan::class.java)
+                for (s in absSpans) {
+                    val start = spanned.getSpanStart(s)
+                    val end = spanned.getSpanEnd(s)
+                    val size = s.size.toFloat()
+                    
+                    if (size / baseFontSize > 1.3f) { // H1
+                        var pStart = start
+                        while (pStart > 0 && spanned[pStart - 1] != '\n') pStart--
+                        var pEnd = end
+                        while (pEnd < spanned.length && spanned[pEnd] != '\n') pEnd++
+                        spanned.setSpan(android.text.style.AlignmentSpan.Standard(android.text.Layout.Alignment.ALIGN_CENTER), pStart, pEnd, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    } else if (size / baseFontSize > 1.05f) { // H2
+                        var pStart = start
+                        while (pStart > 0 && spanned[pStart - 1] != '\n') pStart--
+                        var pEnd = end
+                        while (pEnd < spanned.length && spanned[pEnd] != '\n') pEnd++
+                        spanned.setSpan(android.text.style.LeadingMarginSpan.Standard(20, 20), pStart, pEnd, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+        return spanned
     }
 
     private fun cleanHtmlForExport(html: String): String {
@@ -495,6 +560,29 @@ class ExportViewModel @Inject constructor(
         cleaned = cleaned.replace(Regex("<span style=\"[^\"]*text-decoration:\\s*underline[^\"]*\">(.*?)</span>", RegexOption.IGNORE_CASE), "<u>$1</u>")
         
         return cleaned
+    }
+
+    
+    private fun getHeadingSpacing(layout: android.text.StaticLayout, lineIndex: Int, baseFontSize: Float): Pair<Float, Float> {
+        val text = layout.text
+        if (text !is android.text.Spanned) return 0f to 0f
+        val start = layout.getLineStart(lineIndex)
+        val isParaStart = start == 0 || text[start - 1] == '\n'
+        if (!isParaStart) return 0f to 0f
+        val absSpans = text.getSpans(start, start + 1, android.text.style.AbsoluteSizeSpan::class.java)
+        if (absSpans.isEmpty()) return 0f to 0f
+        
+        val maxFontSize = absSpans.maxOfOrNull { it.size.toFloat() } ?: baseFontSize
+        val ratio = maxFontSize / baseFontSize
+        
+        if (ratio > 1.3f) { // H1
+            val scale = baseFontSize + 6f
+            return (scale * 2.0f) to (scale * 1.0f)
+        } else if (ratio > 1.05f) { // H2 / Subtitle
+            val scale = baseFontSize + 2f
+            return (scale * 2.0f) to (scale * 1.0f)
+        }
+        return 0f to 0f
     }
 
     private fun drawLayoutLine(canvas: android.graphics.Canvas, layout: StaticLayout, lineIndex: Int, x: Float, y: Float) {
@@ -519,3 +607,5 @@ sealed class ExportResult {
     data class Success(val path: String) : ExportResult()
     data class Error(val message: String) : ExportResult()
 }
+
+class CustomHeadingSpan(val level: Int)

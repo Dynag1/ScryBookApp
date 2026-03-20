@@ -96,28 +96,14 @@ fun EditorScreen(
     ) { uri: android.net.Uri? ->
         uri?.let { selectedUri ->
             try {
-                // 1. Décoder le bitmap depuis le flux
-                val original = context.contentResolver.openInputStream(selectedUri)?.use { stream ->
-                    android.graphics.BitmapFactory.decodeStream(stream)
+                // 1. Lire les octets originaux (Sauvegarde non destructive/lossless)
+                val originalBytes = context.contentResolver.openInputStream(selectedUri)?.use { stream ->
+                    stream.readBytes()
                 }
-                if (original != null) {
-                    // 2. Redimensionner si la largeur dépasse 1200px (proportionnel)
-                    val maxWidth = 1200
-                    val resized = if (original.width > maxWidth) {
-                        val ratio = maxWidth.toFloat() / original.width.toFloat()
-                        val newHeight = (original.height * ratio).toInt()
-                        android.graphics.Bitmap.createScaledBitmap(original, maxWidth, newHeight, true)
-                            .also { if (it !== original) original.recycle() }
-                    } else {
-                        original
-                    }
-                    // 3. Compresser en JPEG qualité 85 (comme l'appli bureau)
-                    val out = java.io.ByteArrayOutputStream()
-                    resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
-                    resized.recycle()
-                    // 4. Encoder en Base64 et injecter comme data URI
-                    val base64 = android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
-                    val dataUri = "data:image/jpeg;base64,$base64"
+                if (originalBytes != null) {
+                    val mimeType = context.contentResolver.getType(selectedUri) ?: "image/jpeg"
+                    val base64 = android.util.Base64.encodeToString(originalBytes, android.util.Base64.NO_WRAP)
+                    val dataUri = "data:$mimeType;base64,$base64"
                     val escaped = dataUri.replace("\\", "\\\\").replace("'", "\\'")
                     webView?.evaluateJavascript("insertImage('$escaped');", null)
                 }
@@ -599,6 +585,8 @@ private fun EditorMainContent(
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = true
                     settings.allowContentAccess = true
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
                     
                     // Force dark mode if supported to fix contrast in system menus (spellcheck, etc.)
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
@@ -646,7 +634,7 @@ private fun EditorMainContent(
                         .replace("\\", "\\\\")
                         .replace("'", "\\'")
                         .replace("\n", "\\n")
-                    view.evaluateJavascript("if(document.getElementById('editor').innerHTML === '') setContent('$escaped');", null)
+                    view.evaluateJavascript("var ed = document.getElementById('editor'); if(ed && ed.innerHTML === '') setContent('$escaped');", null)
                 }
             },
             modifier = Modifier.weight(1f).fillMaxWidth()
@@ -758,19 +746,22 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <meta name="color-scheme" content="light dark">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; line-height: 1.6 !important; }
   body {
     font-family: Georgia, serif;
     font-size: ${fontSize}px !important;
-    line-height: 1.6;
     text-align: justify;
     background: $bgColor;
     color: $textColor;
-    padding: 16px;
-    min-height: 100vh;
+    padding: 76px !important; /* Marge de 2cm */
+    width: 794px !important; /* Base A4 */
+    max-width: 794px !important;
+    margin: 0 auto !important; /* Centré */
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    min-height: 1123px;
     overflow-x: hidden;
   }
   #editor {
@@ -778,6 +769,9 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     min-height: 100%;
     caret-color: $accentColor;
     word-wrap: break-word;
+    
+    background-size: 100% 971px;
+    background-repeat: repeat-y;
   }
   #editor * {
     font-size: inherit;
@@ -786,14 +780,30 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     background-color: transparent !important;
     color: inherit !important;
   }
-  h1 { display: block !important; text-align: center; font-size: ${h1Size}px !important; font-weight: normal; margin-top: 1em !important; margin-bottom: 0.5em !important; color: $accentColor; }
-  h1 * { font-size: ${h1Size}px !important; }
-  h2 { display: block !important; text-align: left; font-size: ${h2Size}px !important; font-weight: bold; text-decoration: underline; margin-top: 1em !important; margin-bottom: 0.5em !important; margin-left: 2em !important; }
-  h2 * { font-size: ${h2Size}px !important; }
+  h1 { 
+    display: block !important; 
+    text-align: center; 
+    font-size: \${h1Size}px !important; 
+    font-weight: normal; 
+    margin-top: calc(\${h1Size}px * 2.0) !important; 
+    margin-bottom: calc(\${h1Size}px * 1.0) !important; 
+    color: $accentColor; 
+  }
+  h1 * { font-size: \${h1Size}px !important; }
+  h2 { 
+    display: block !important; 
+    text-align: left; 
+    font-size: \${h2Size}px !important; 
+    font-weight: bold; 
+    margin-top: calc(\${h2Size}px * 2.0) !important; 
+    margin-bottom: calc(\${h2Size}px * 1.0) !important; 
+    padding-left: 20px !important; /* Retrait (indentation) */
+  }
+  h2 * { font-size: \${h2Size}px !important; }
   p { margin-bottom: 0.8em; font-size: ${fontSize}px !important; }
   p * { font-size: ${fontSize}px !important; }
   ul, ol { margin-left: 20px; margin-bottom: 0.8em; }
-  img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 4px; }
+  img { max-width: 100% !important; height: auto !important; display: block; margin: 10px auto; border-radius: 4px; }
   #resizer-overlay { position: absolute; border: 2px solid $accentColor; display: none; z-index: 1000; pointer-events: none; }
   .resize-handle { position: absolute; width: 14px; height: 14px; background: white; border: 2px solid $accentColor; border-radius: 50%; pointer-events: auto; }
   .handle-nw { top: -7px; left: -7px; cursor: nw-resize; }
@@ -808,6 +818,38 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   var editor = document.getElementById('editor');
   var timer = null;
   var selectedImg = null;
+
+  function drawPageBreaks() {
+      // Nettoyer les anciens sauts de page
+      var old = document.querySelectorAll('.page-break-line');
+      old.forEach(function(el) { el.remove(); });
+
+      // Math précise : 
+      // Page 1 : 1123 - 76 (marge bas) - 76 (marge haut) - 100 (titre/header offset) = 871 px
+      // Page 2+ : 1123 - 76 (marge bas) - 76 (marge haut) - 20 (regular offset) = 951 px
+      var page1Height = 871;
+      var regularHeight = 951;
+
+      var totalHeight = editor.scrollHeight;
+      var currentY = page1Height;
+
+      while (currentY < totalHeight) {
+          var line = document.createElement('div');
+          line.className = 'page-break-line';
+          line.style.position = 'absolute';
+          line.style.top = currentY + 'px';
+          line.style.left = '0';
+          line.style.width = '100%';
+          line.style.height = '4px';
+          // Faire des tirets via un gradient linéaire horizontal
+          line.style.backgroundImage = 'linear-gradient(to right, rgba(0, 120, 255, 0.8) 60%, transparent 40%)';
+          line.style.backgroundSize = '16px 100%';
+          line.style.pointerEvents = 'none';
+          editor.appendChild(line);
+
+          currentY += regularHeight;
+      }
+  }
 
   function cleanHtml(html) {
     if (!html) return '';
@@ -835,7 +877,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     clearTimeout(timer);
     timer = setTimeout(function() {
       var cleaned = cleanHtml(editor.innerHTML);
-      Android.onContentChanged(cleaned);
+      Android.onContentChanged(cleaned); drawPageBreaks();
     }, 500);
   });
 
@@ -863,7 +905,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
       node = node.parentNode;
     }
     if (window.Android && window.Android.onFormatUpdate) {
-        window.Android.onFormatUpdate(isH1, isH2);
+        window.Android.onFormatUpdate(isH1, isH2); drawPageBreaks();
     }
     if (selectedImg) {
         if (!document.body.contains(selectedImg)) {
@@ -876,12 +918,12 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 
   document.addEventListener('selectionchange', sendFormatUpdate);
   editor.addEventListener('click', sendFormatUpdate);
+  window.addEventListener('resize', drawPageBreaks);
   editor.addEventListener('keyup', sendFormatUpdate);
 
   function setContent(html) {
-    editor.innerHTML = cleanHtml(html);
+    editor.innerHTML = cleanHtml(html); drawPageBreaks();
   }
-
 
   function insertTextAtCursor(text) {
     document.execCommand('insertText', false, text + ' ');
@@ -949,7 +991,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
            var currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
            var dx = currentX - startX;
            var newWidth = startWidth;
-           var isRight = handle.className.indexOf('handle-se') >= 0 || handle.className.indexOf('handle-ne') >= 0;
+           var isRight = handle.className.indexOf('handle-se') >= 0 || handle.className.indexOf('handle-se') >= 0 || handle.className.indexOf('handle-ne') >= 0;
            if (isRight) {
                 newWidth = startWidth + dx;
            } else {
@@ -957,7 +999,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
            }
            if (newWidth > 30) {
                 selectedImg.style.width = newWidth + 'px';
-                selectedImg.style.height = 'auto'; // Aspect ratio usually kept by viewport height auto
+                selectedImg.style.height = 'auto';
            }
            updateResizerPos(selectedImg);
       }
@@ -981,7 +1023,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     } else {
         hideResizer();
         if (e.target.tagName !== 'A') {
-            editor.focus();
+            editor.focus(); drawPageBreaks();
         }
     }
   });
@@ -991,7 +1033,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   });
 
   window.onload = function() {
-    editor.focus();
+    editor.focus(); drawPageBreaks();
   };
 </script>
 </body>
