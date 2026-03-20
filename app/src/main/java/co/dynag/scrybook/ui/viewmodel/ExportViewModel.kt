@@ -56,6 +56,7 @@ class ExportViewModel @Inject constructor(
                     }
                     val margin = if (param.format == "Poche") 40f else 56f
                     val contentWidth = pageWidth - (2 * margin).toInt()
+                    val contentHeight = pageHeight - (2 * margin).toInt()
 
                     val selectedTypeface = when (param.police.lowercase()) {
                         "sans" -> Typeface.SANS_SERIF
@@ -117,7 +118,7 @@ class ExportViewModel @Inject constructor(
                     val tocEntries = mutableListOf<Pair<String, Int>>()
                     
                     val chapterLayouts = chapitres.map { chapitre ->
-                        val formattedContent = getHtmlContent(chapitre.contenuHtml, contentWidth)
+                        val formattedContent = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight)
                         val layout = StaticLayout.Builder.obtain(formattedContent, 0, formattedContent.length, bodyPaint, contentWidth)
                             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                             .setLineSpacing(0f, 1.2f)
@@ -260,7 +261,7 @@ class ExportViewModel @Inject constructor(
                         val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                         drawCenteredText(page.canvas, "Résumé", chapterTitlePaint, pageWidth.toFloat(), margin + 40f)
                         yPos = margin + 100f
-                        val formattedResume = getHtmlContent(info.resume, contentWidth)
+                        val formattedResume = getHtmlContent(info.resume, contentWidth, contentHeight)
                         val resLayout = StaticLayout.Builder.obtain(formattedResume, 0, formattedResume.length, bodyPaint, contentWidth)
                             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                             .setLineSpacing(0f, 1.2f)
@@ -310,6 +311,7 @@ class ExportViewModel @Inject constructor(
                     }
                     val margin = if (param.format == "Poche") 40f else 56f
                     val contentWidth = pageWidth - (2 * margin).toInt()
+                    val contentHeight = pageHeight - (2 * margin).toInt()
 
                     val selectedTypeface = when (param.police.lowercase()) {
                         "sans" -> Typeface.SANS_SERIF
@@ -341,7 +343,7 @@ class ExportViewModel @Inject constructor(
                         }
                     }
 
-                    val content = getHtmlContent(chapitre.contenuHtml, contentWidth)
+                    val content = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight)
                     val layout = StaticLayout.Builder.obtain(content, 0, content.length, bodyPaint, contentWidth)
                         .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.2f).build()
 
@@ -389,35 +391,84 @@ class ExportViewModel @Inject constructor(
         }
     }
 
-    private fun getHtmlContent(html: String, contentWidth: Int): CharSequence {
+    private fun getHtmlContent(html: String, contentWidth: Int, contentHeight: Int): CharSequence {
         val cleaned = cleanHtmlForExport(html)
+        val imgAttrsMap = mutableMapOf<String, ImageAttrs>()
+        val imgRegex = Regex("<img[^>]*src=\"([^\"]+)\"[^>]*>", RegexOption.IGNORE_CASE)
+        
+        imgRegex.findAll(cleaned).forEach { match ->
+            val tag = match.value
+            val src = match.groups[1]?.value ?: return@forEach
+            val w = Regex("width=\"([^\"]+)\"", RegexOption.IGNORE_CASE).find(tag)?.groups?.get(1)?.value
+            val h = Regex("height=\"([^\"]+)\"", RegexOption.IGNORE_CASE).find(tag)?.groups?.get(1)?.value
+            val s = Regex("style=\"([^\"]+)\"", RegexOption.IGNORE_CASE).find(tag)?.groups?.get(1)?.value
+            imgAttrsMap[src] = ImageAttrs(w, h, s)
+        }
+
         return Html.fromHtml(cleaned, Html.FROM_HTML_MODE_COMPACT, { source ->
             try {
-                if (source.startsWith("data:image/", ignoreCase = true) && source.contains("base64,")) {
+                val bitmap = if (source.startsWith("data:image/", ignoreCase = true) && source.contains("base64,")) {
                     val base64Data = source.substringAfter("base64,")
                     val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-                    if (bitmap != null) {
-                        val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
-                        val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
-                        val targetWidth = if (bitmap.width > contentWidth) contentWidth else bitmap.width
-                        val targetHeight = (targetWidth * ratio).toInt()
-                        drawable.setBounds(0, 0, targetWidth, targetHeight)
-                        return@fromHtml drawable
-                    }
+                    android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
                 } else {
                     val imgFile = File(source)
-                    if (imgFile.exists()) {
-                        val bitmap = android.graphics.BitmapFactory.decodeFile(imgFile.absolutePath)
-                        if (bitmap != null) {
-                            val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
-                            val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
-                            val targetWidth = if (bitmap.width > contentWidth) contentWidth else bitmap.width
-                            val targetHeight = (targetWidth * ratio).toInt()
-                            drawable.setBounds(0, 0, targetWidth, targetHeight)
-                            return@fromHtml drawable
+                    if (imgFile.exists()) android.graphics.BitmapFactory.decodeFile(imgFile.absolutePath) else null
+                }
+
+                if (bitmap != null) {
+                    val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+                    val ratio = bitmap.height.toFloat() / bitmap.width.toFloat()
+                    val attrs = imgAttrsMap[source]
+                    
+                    var targetWidth = bitmap.width
+                    var targetHeight = bitmap.height
+
+                    attrs?.let { attr ->
+                        attr.width?.let { w ->
+                            if (w.endsWith("%")) {
+                                val pct = w.dropLast(1).toFloatOrNull() ?: 100f
+                                targetWidth = (contentWidth * pct / 100f).toInt()
+                                targetHeight = (targetWidth * ratio).toInt()
+                            } else {
+                                w.toIntOrNull()?.let { px ->
+                                    targetWidth = px
+                                    targetHeight = (targetWidth * ratio).toInt()
+                                }
+                            }
+                        }
+                        if (targetWidth == bitmap.width) { // respect style if width not set
+                            attr.style?.let { s ->
+                                val styleWidthRegex = Regex("width:\\s*(\\d+(?:px|%))", RegexOption.IGNORE_CASE)
+                                styleWidthRegex.find(s)?.groups?.get(1)?.value?.let { w ->
+                                    if (w.endsWith("%")) {
+                                        val pct = w.dropLast(1).toFloatOrNull() ?: 100f
+                                        targetWidth = (contentWidth * pct / 100f).toInt()
+                                        targetHeight = (targetWidth * ratio).toInt()
+                                    } else if (w.endsWith("px")) {
+                                        w.dropLast(2).toIntOrNull()?.let { px ->
+                                            targetWidth = px
+                                            targetHeight = (targetWidth * ratio).toInt()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+
+                    if (targetWidth > contentWidth) {
+                        targetWidth = contentWidth
+                        targetHeight = (targetWidth * ratio).toInt()
+                    }
+
+                    val maxDrawableHeight = contentHeight - 40
+                    if (targetHeight > maxDrawableHeight) {
+                        targetHeight = maxDrawableHeight
+                        targetWidth = (targetHeight / ratio).toInt()
+                    }
+
+                    drawable.setBounds(0, 0, targetWidth, targetHeight)
+                    return@fromHtml drawable
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -461,6 +512,8 @@ class ExportViewModel @Inject constructor(
         canvas.drawText(text, x, y, paint)
     }
 }
+
+private data class ImageAttrs(val width: String?, val height: String?, val style: String?)
 
 sealed class ExportResult {
     data class Success(val path: String) : ExportResult()

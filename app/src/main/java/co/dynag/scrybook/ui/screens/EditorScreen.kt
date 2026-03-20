@@ -794,6 +794,12 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
   p * { font-size: ${fontSize}px !important; }
   ul, ol { margin-left: 20px; margin-bottom: 0.8em; }
   img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 4px; }
+  #resizer-overlay { position: absolute; border: 2px solid $accentColor; display: none; z-index: 1000; pointer-events: none; }
+  .resize-handle { position: absolute; width: 14px; height: 14px; background: white; border: 2px solid $accentColor; border-radius: 50%; pointer-events: auto; }
+  .handle-nw { top: -7px; left: -7px; cursor: nw-resize; }
+  .handle-ne { top: -7px; right: -7px; cursor: ne-resize; }
+  .handle-sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+  .handle-se { bottom: -7px; right: -7px; cursor: se-resize; }
 </style>
 </head>
 <body>
@@ -801,6 +807,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 <script>
   var editor = document.getElementById('editor');
   var timer = null;
+  var selectedImg = null;
 
   function cleanHtml(html) {
     if (!html) return '';
@@ -810,8 +817,10 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     for (var i = 0; i < all.length; i++) {
         var el = all[i];
         if (el.nodeType === 1) { // Element
-            el.removeAttribute('style');
-            el.removeAttribute('class');
+            if (el.tagName.toLowerCase() !== 'img') {
+                el.removeAttribute('style');
+                el.removeAttribute('class');
+            }
             if (el.tagName.toLowerCase() === 'font') {
                 el.removeAttribute('color');
                 el.removeAttribute('face');
@@ -856,6 +865,13 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     if (window.Android && window.Android.onFormatUpdate) {
         window.Android.onFormatUpdate(isH1, isH2);
     }
+    if (selectedImg) {
+        if (!document.body.contains(selectedImg)) {
+            hideResizer();
+        } else {
+            updateResizerPos(selectedImg);
+        }
+    }
   }
 
   document.addEventListener('selectionchange', sendFormatUpdate);
@@ -886,11 +902,92 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     }
   }
 
-  // Focus helper
+  function updateResizerPos(img) {
+      var overlay = document.getElementById('resizer-overlay');
+      if (!overlay) return;
+      var rect = img.getBoundingClientRect();
+      overlay.style.top = (rect.top + window.scrollY) + 'px';
+      overlay.style.left = (rect.left + window.scrollX) + 'px';
+      overlay.style.width = rect.width + 'px';
+      overlay.style.height = rect.height + 'px';
+  }
+
+  function hideResizer() {
+      var overlay = document.getElementById('resizer-overlay');
+      if (overlay) overlay.style.display = 'none';
+      selectedImg = null;
+  }
+
+  function showResizer(img) {
+      var overlay = document.getElementById('resizer-overlay');
+      if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'resizer-overlay';
+          var handles = ['nw', 'ne', 'sw', 'se'];
+          handles.forEach(function(h) {
+               var div = document.createElement('div');
+               div.className = 'resize-handle handle-' + h;
+               div.addEventListener('mousedown', startResize);
+               div.addEventListener('touchstart', startResize, { passive: false });
+               overlay.appendChild(div);
+          });
+          document.body.appendChild(overlay);
+      }
+      updateResizerPos(img);
+      overlay.style.display = 'block';
+  }
+
+  function startResize(e) {
+      e.preventDefault();
+      if (!selectedImg) return;
+      var handle = e.target;
+      var startX = e.clientX || (e.touches && e.touches[0].clientX);
+      var startY = e.clientY || (e.touches && e.touches[0].clientY);
+      var startWidth = selectedImg.clientWidth;
+      
+      function moveHandler(moveEvent) {
+           var currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
+           var dx = currentX - startX;
+           var newWidth = startWidth;
+           var isRight = handle.className.indexOf('handle-se') >= 0 || handle.className.indexOf('handle-ne') >= 0;
+           if (isRight) {
+                newWidth = startWidth + dx;
+           } else {
+                newWidth = startWidth - dx;
+           }
+           if (newWidth > 30) {
+                selectedImg.style.width = newWidth + 'px';
+                selectedImg.style.height = 'auto'; // Aspect ratio usually kept by viewport height auto
+           }
+           updateResizerPos(selectedImg);
+      }
+      function endHandler() {
+           window.removeEventListener('mousemove', moveHandler);
+           window.removeEventListener('touchmove', moveHandler);
+           window.removeEventListener('mouseup', endHandler);
+           window.removeEventListener('touchend', endHandler);
+           Android.onContentChanged(cleanHtml(editor.innerHTML));
+      }
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchend', endHandler);
+  }
+
   document.addEventListener('click', function(e) {
-    if (e.target.tagName !== 'A' && e.target.tagName !== 'IMG') {
-        editor.focus();
+    if (e.target.tagName === 'IMG') {
+        selectedImg = e.target;
+        showResizer(selectedImg);
+    } else {
+        hideResizer();
+        if (e.target.tagName !== 'A') {
+            editor.focus();
+        }
     }
+  });
+
+  window.addEventListener('scroll', function() {
+      if (selectedImg) updateResizerPos(selectedImg);
   });
 
   window.onload = function() {
