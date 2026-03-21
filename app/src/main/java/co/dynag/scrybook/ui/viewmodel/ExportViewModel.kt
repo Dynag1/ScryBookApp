@@ -284,22 +284,45 @@ class ExportViewModel @Inject constructor(
 
                     // 4. Résumé
                     if (info.resume.isNotBlank()) {
-                        val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
-                        drawCenteredText(page.canvas, "Résumé", chapterTitlePaint, pageWidth.toFloat(), margin + 40f)
-                        yPos = margin + 100f
                         val formattedResume = getHtmlContent(info.resume, contentWidth, contentHeight, baseFontSize)
                         val resLayout = StaticLayout.Builder.obtain(formattedResume, 0, formattedResume.length, bodyPaint, contentWidth)
-                            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                            .setAlignment(Layout.Alignment.ALIGN_CENTER)
                             .setLineSpacing(0f, 1.6f)
                             .build()
+
+                        // Calcul de la hauteur totale du bloc
+                        var totalLayoutHeight = 0f
+                        for (i in 0 until resLayout.lineCount) {
+                            val spacing = getHeadingSpacing(resLayout, i, baseFontSize)
+                            val lh = resLayout.getLineBottom(i) - resLayout.getLineTop(i)
+                            totalLayoutHeight += spacing.first + lh + spacing.second
+                        }
+
+                        val titleText = "Résumé"
+                        val metrics = chapterTitlePaint.fontMetrics
+                        val titleHeight = metrics.descent - metrics.ascent
+                        val titleSpacing = 40f
+                        val totalBlockHeight = titleHeight + titleSpacing + totalLayoutHeight
+
+                        var yPos = (pageHeight - totalBlockHeight) / 2f
+                        if (yPos < margin) yPos = margin
+
+                        val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
+                        val canvas = page.canvas
+
+                        // Dessin du Titre centré
+                        drawCenteredText(canvas, titleText, chapterTitlePaint, pageWidth.toFloat(), yPos - metrics.ascent)
+                        yPos += titleHeight + titleSpacing
+
                         for (i in 0 until resLayout.lineCount) {
                             val spacing = getHeadingSpacing(resLayout, i, baseFontSize)
                             yPos += spacing.first // Margin Top
                             val lh = resLayout.getLineBottom(i) - resLayout.getLineTop(i)
                             if (yPos + lh > pageHeight - margin) break
-                            drawLayoutLine(page.canvas, resLayout, i, margin, yPos)
+                            drawLayoutLine(canvas, resLayout, i, margin, yPos)
                             yPos += lh + spacing.second // Margin Bottom
                         }
+                        
                         document.finishPage(page)
                         docPageNumber++
                     }
