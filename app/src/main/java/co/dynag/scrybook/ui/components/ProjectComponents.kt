@@ -32,7 +32,8 @@ fun ProjectDrawerContent(
     onNewChapter: () -> Unit,
     selectedId: Long? = null,
     onHeaderClick: (() -> Unit)? = null,
-    onTitleClick: ((String) -> Unit)? = null
+    onTitleClick: ((String) -> Unit)? = null,
+    selectedChapterContent: String? = null
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -93,10 +94,11 @@ fun ProjectDrawerContent(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
 
-                    if (isSelected && isLandscape && chapitre.contenuHtml.isNotBlank()) {
-                        val titles = remember(chapitre.contenuHtml) {
+                    val contentToUse = if (isSelected) selectedChapterContent ?: "" else ""
+                    if (isSelected && isLandscape && contentToUse.isNotBlank()) {
+                        val titles = remember(contentToUse) {
                             val regex = Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE)
-                            regex.findAll(chapitre.contenuHtml)
+                            regex.findAll(contentToUse)
                                 .map { it.groupValues[1].replace(Regex("<[^>]*>"), "").trim() }
                                 .filter { it.isNotBlank() }
                                 .toList()

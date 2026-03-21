@@ -160,7 +160,8 @@ fun EditorScreen(
                         onTitleClick = { title ->
                             val escaped = title.replace("'", "\\'")
                             webView?.evaluateJavascript("scrollToTitle('$escaped');", null)
-                        }
+                        },
+                        selectedChapterContent = htmlContent
                     )
                 }
             }

@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.database.DatabaseErrorHandler
 import co.dynag.scrybook.data.model.*
 
 /**
@@ -12,7 +13,15 @@ import co.dynag.scrybook.data.model.*
  * The .sb file IS the SQLite database file.
  */
 class ScryBookDatabase(private val context: Context, dbPath: String, private val isEtude: Boolean = false) :
-    SQLiteOpenHelper(context, dbPath, null, DB_VERSION) {
+    SQLiteOpenHelper(context, dbPath, null, DB_VERSION, SafeErrorHandler()) {
+
+    class SafeErrorHandler : DatabaseErrorHandler {
+        override fun onCorruption(dbObj: SQLiteDatabase) {
+            android.util.Log.e("ScryBookDB", "Database corruption detected on ${dbObj.path}. NOT DELETING.")
+            // Throw exception to abort the opening process and prevent data deletion
+            throw android.database.sqlite.SQLiteDatabaseCorruptException("SafeErrorHandler: Database is corrupt, refusing to delete!")
+        }
+    }
 
     companion object {
         const val DB_VERSION = 3
@@ -129,14 +138,15 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
     fun getChapitres(): List<Chapitre> {
         val list = mutableListOf<Chapitre>()
         val db = readableDatabase
-        val cursor = db.rawQuery("SELECT id, nom, numero, resume, COALESCE(contenu_html,'') FROM $TABLE_CHAPITRE ORDER BY CAST(numero AS INTEGER)", null)
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
+        val cursor = db.rawQuery("SELECT id, nom, numero, resume FROM $tableName ORDER BY CAST(numero AS INTEGER)", null)
         while (cursor.moveToNext()) {
             list.add(Chapitre(
                 id = cursor.getLong(0),
                 nom = cursor.getString(1) ?: "",
                 numero = cursor.getString(2) ?: "",
                 resume = cursor.getString(3) ?: "",
-                contenuHtml = cursor.getString(4) ?: ""
+                contenuHtml = "" // Exclu pour éviter les plantages CursorWindow sur les gros fichiers
             ))
         }
         cursor.close()
@@ -145,7 +155,8 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
 
     fun getChapitre(id: Long): Chapitre? {
         val db = readableDatabase
-        val cursor = db.rawQuery("SELECT id, nom, numero, resume, COALESCE(contenu_html,'') FROM $TABLE_CHAPITRE WHERE id=?", arrayOf(id.toString()))
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
+        val cursor = db.rawQuery("SELECT id, nom, numero, resume, COALESCE(contenu_html,'') FROM $tableName WHERE id=?", arrayOf(id.toString()))
         return if (cursor.moveToFirst()) {
             Chapitre(cursor.getLong(0), cursor.getString(1)?:"", cursor.getString(2)?:"", cursor.getString(3)?:"", cursor.getString(4)?:"").also { cursor.close() }
         } else { cursor.close(); null }
@@ -153,29 +164,34 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
 
     fun insertChapitre(nom: String, numero: String, resume: String): Long {
         val db = writableDatabase
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
         val cv = ContentValues().apply {
             put("nom", nom); put("numero", numero)
             put("resume", resume); put("contenu_html", "")
         }
-        return db.insert(TABLE_CHAPITRE, null, cv)
+        return db.insert(tableName, null, cv)
     }
 
     fun updateChapitre(id: Long, nom: String, numero: String, resume: String) {
         val db = writableDatabase
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
         val cv = ContentValues().apply { put("nom", nom); put("numero", numero); put("resume", resume) }
-        db.update(TABLE_CHAPITRE, cv, "id=?", arrayOf(id.toString()))
+        db.update(tableName, cv, "id=?", arrayOf(id.toString()))
     }
 
     fun saveChapitreContenu(id: Long, html: String) {
         android.util.Log.d("ScryBookDB", "Saving chapter $id, content length: ${html.length}")
         val db = writableDatabase
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
         val cv = ContentValues().apply { put("contenu_html", html) }
-        val count = db.update(TABLE_CHAPITRE, cv, "id=?", arrayOf(id.toString()))
+        val count = db.update(tableName, cv, "id=?", arrayOf(id.toString()))
         android.util.Log.d("ScryBookDB", "Update result: $count rows affected")
     }
 
     fun deleteChapitre(id: Long) {
-        writableDatabase.delete(TABLE_CHAPITRE, "id=?", arrayOf(id.toString()))
+        val db = writableDatabase
+        val tableName = resolveTableName(db, TABLE_CHAPITRE)
+        db.delete(tableName, "id=?", arrayOf(id.toString()))
     }
 
     // ─── Personnages ─────────────────────────────────────────────────────────
@@ -317,10 +333,30 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
         return array.toString()
     }
 
+    private fun resolveTableName(db: SQLiteDatabase, baseName: String): String {
+        // 1. Exact match
+        var cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", arrayOf(baseName))
+        if (cursor.moveToFirst()) { val n = cursor.getString(0); cursor.close(); return n }
+        cursor.close()
+
+        // 2. Plural match (e.g., chapitre -> chapitres)
+        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", arrayOf(baseName + "s"))
+        if (cursor.moveToFirst()) { val n = cursor.getString(0); cursor.close(); return n }
+        cursor.close()
+
+        // 3. Fallback to containing string (e.g., %chapitre%)
+        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?", arrayOf("%$baseName%"))
+        if (cursor.moveToFirst()) { val n = cursor.getString(0); cursor.close(); return n }
+        cursor.close()
+
+        return baseName
+    }
+
     private fun ensureSchema(db: SQLiteDatabase) {
         try {
             // 1. TABLE_CHAPITRE
-            val pragmaChap = db.rawQuery("PRAGMA table_info($TABLE_CHAPITRE)", null)
+            val resolvedTable = resolveTableName(db, TABLE_CHAPITRE)
+            val pragmaChap = db.rawQuery("PRAGMA table_info($resolvedTable)", null)
             var hasContenuHtml = false
             var hasContenu = false
             while (pragmaChap.moveToNext()) {
@@ -330,9 +366,9 @@ class ScryBookDatabase(private val context: Context, dbPath: String, private val
             }
             pragmaChap.close()
             if (!hasContenuHtml) {
-                db.execSQL("ALTER TABLE $TABLE_CHAPITRE ADD COLUMN contenu_html TEXT DEFAULT ''")
+                db.execSQL("ALTER TABLE $resolvedTable ADD COLUMN contenu_html TEXT DEFAULT ''")
                 if (hasContenu) {
-                    db.execSQL("UPDATE $TABLE_CHAPITRE SET contenu_html = contenu")
+                    db.execSQL("UPDATE $resolvedTable SET contenu_html = contenu")
                 }
             }
 

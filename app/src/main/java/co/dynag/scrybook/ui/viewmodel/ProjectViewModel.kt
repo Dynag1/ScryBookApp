@@ -25,6 +25,9 @@ class ProjectViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     private val _showNewChapterDialog = MutableStateFlow(false)
     val showNewChapterDialog: StateFlow<Boolean> = _showNewChapterDialog
 
@@ -32,12 +35,14 @@ class ProjectViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _isLoading.value = true
+                _error.value = null
                 repository.openProject(path)
                 _chapitres.value = repository.getChapitres()
                 _info.value = repository.getInfo()
                 _isLoading.value = false
             } catch (e: Exception) {
                 e.printStackTrace()
+                _error.value = "Erreur de chargement: ${e.message ?: "Format inconnu (incompatible avec Bureau?)"}"
                 _isLoading.value = false
             }
         }

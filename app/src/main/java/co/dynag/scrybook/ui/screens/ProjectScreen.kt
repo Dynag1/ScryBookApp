@@ -53,6 +53,7 @@ fun ProjectScreen(
     val chapitres by viewModel.chapitres.collectAsState()
     val info by viewModel.info.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
     val showNewChapterDialog by viewModel.showNewChapterDialog.collectAsState()
     val exporting by exportViewModel.exporting.collectAsState()
     val exportResult by exportViewModel.result.collectAsState()
@@ -91,6 +92,12 @@ fun ProjectScreen(
         }
     }
 
+    LaunchedEffect(error) {
+        error?.let {
+            snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Long)
+        }
+    }
+    
     LaunchedEffect(exportResult) {
         exportResult?.let { result ->
             when (result) {
