@@ -49,30 +49,33 @@ class ExportViewModel @Inject constructor(
                     val chapitres = repository.getChapitres()
                     val param = repository.getParam()
 
-                    val (pageWidth, pageHeight) = 794 to 1123 // A4 @ 96 DPI
-                    val margin = 76f // 2 cm
-                    val contentWidth = pageWidth - (2 * margin).toInt()
-                    val contentHeight = pageHeight - (2 * margin).toInt()
-
                     val selectedTypeface = when (param.police.lowercase()) {
                         "sans" -> Typeface.SANS_SERIF
                         "mono" -> Typeface.MONOSPACE
                         else -> Typeface.SERIF
                     }
                     val baseFontSize = param.taille.toFloatOrNull() ?: 12f
+                    val (pageWidth, pageHeight) = when (param.format) {
+                        "A5" -> 420 to 595
+                        "Poche" -> 312 to 510
+                        else -> 595 to 842
+                    }
+                    val margin = if (param.format == "Poche") 40f else 56f
+                    val contentWidth = pageWidth - (2 * margin).toInt()
+                    val contentHeight = pageHeight - (2 * margin).toInt()
 
                     // --- Styles ---
                     val titlePaint = TextPaint().apply {
                         color = Color.BLACK; typeface = Typeface.create(selectedTypeface, Typeface.BOLD)
-                        textSize = 28f; isAntiAlias = true
+                        textSize = baseFontSize * 2.3f; isAntiAlias = true
                     }
                     val subtitlePaint = TextPaint().apply {
                         color = Color.DKGRAY; typeface = Typeface.create(selectedTypeface, Typeface.NORMAL)
-                        textSize = 18f; isAntiAlias = true
+                        textSize = baseFontSize * 1.5f; isAntiAlias = true
                     }
                     val authorPaint = TextPaint().apply {
                         color = Color.DKGRAY; typeface = Typeface.create(selectedTypeface, Typeface.ITALIC)
-                        textSize = 14f; isAntiAlias = true
+                        textSize = baseFontSize * 1.2f; isAntiAlias = true
                     }
                     val bodyPaint = TextPaint().apply {
                         color = Color.BLACK; typeface = selectedTypeface
@@ -80,11 +83,11 @@ class ExportViewModel @Inject constructor(
                     }
                     val chapterTitlePaint = TextPaint().apply {
                         color = Color.BLACK; typeface = Typeface.create(selectedTypeface, Typeface.BOLD)
-                        textSize = 20f; isAntiAlias = true
+                        textSize = baseFontSize * 1.6f; isAntiAlias = true
                     }
                     val headerPaint = TextPaint().apply {
                         color = Color.GRAY; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-                        textSize = 9f; isAntiAlias = true
+                        textSize = baseFontSize * 0.75f; isAntiAlias = true
                     }
 
                     val isEtude = projectPath.endsWith(".sbe")
@@ -195,10 +198,10 @@ class ExportViewModel @Inject constructor(
                     yPos = margin + 20f
                     drawCenteredText(tocPage.canvas, "Sommaire", titlePaint, pageWidth.toFloat(), yPos)
                     yPos += 60f
-                    val tocLinePaint = TextPaint(bodyPaint).apply { textSize = 14f }
+                    val tocLinePaint = TextPaint(bodyPaint).apply { textSize = baseFontSize * 1.1f }
                     for ((title, pageNum) in tocEntries) {
                         tocPage.canvas.drawText(title, margin, yPos, tocLinePaint)
-                        val pStr = pageNum.toString()
+                        val pStr = (pageNum - 2).toString() // Adjust to exclude title and TOC from numbering
                         val pWidth = tocLinePaint.measureText(pStr)
                         tocPage.canvas.drawText(pStr, pageWidth - margin - pWidth, yPos, tocLinePaint)
                         // Points
@@ -371,8 +374,8 @@ class ExportViewModel @Inject constructor(
                     }
                     val baseFontSize = param.taille.toFloatOrNull() ?: 12f
                     val bodyPaint = TextPaint().apply { color = Color.BLACK; typeface = selectedTypeface; textSize = baseFontSize; isAntiAlias = true }
-                    val titlePaint = TextPaint().apply { color = Color.BLACK; typeface = Typeface.create(selectedTypeface, Typeface.BOLD); textSize = 20f; isAntiAlias = true }
-                    val headerPaint = TextPaint().apply { color = Color.GRAY; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textSize = 9f; isAntiAlias = true }
+                    val titlePaint = TextPaint().apply { color = Color.BLACK; typeface = Typeface.create(selectedTypeface, Typeface.BOLD); textSize = baseFontSize * 1.6f; isAntiAlias = true }
+                    val headerPaint = TextPaint().apply { color = Color.GRAY; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textSize = baseFontSize * 0.75f; isAntiAlias = true }
 
                     val isEtude = projectPath.endsWith(".sbe")
                     val logoDecoded = if (param.logoB64.isNotBlank()) {

@@ -57,6 +57,7 @@ fun ProjectScreen(
     val showNewChapterDialog by viewModel.showNewChapterDialog.collectAsState()
     val exporting by exportViewModel.exporting.collectAsState()
     val exportResult by exportViewModel.result.collectAsState()
+    val param by viewModel.param.collectAsState()
 
     var newChapNom by remember { mutableStateOf("") }
     var newChapNum by remember { mutableStateOf("") }
@@ -149,7 +150,8 @@ fun ProjectScreen(
                         onInfoOpen = onInfoOpen,
                         onChapterOpen = onChapterOpen,
                         onChapterEdit = { chapterToEdit = it },
-                        onChapterDelete = { chapterToDelete = it }
+                        onChapterDelete = { chapterToDelete = it },
+                        fontSize = param.taille
                     )
                 }
                 VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -157,6 +159,7 @@ fun ProjectScreen(
                     title = stringResource(R.string.nav_summary),
                     resume = info.resume,
                     modifier = Modifier.width(300.dp),
+                    fontSize = param.taille,
                     onSave = { newResume ->
                         viewModel.updateProjectResume(newResume)
                     }
@@ -208,7 +211,8 @@ fun ProjectScreen(
                 onInfoOpen = onInfoOpen,
                 onChapterOpen = onChapterOpen,
                 onChapterEdit = { chapterToEdit = it },
-                onChapterDelete = { chapterToDelete = it }
+                onChapterDelete = { chapterToDelete = it },
+                fontSize = param.taille
             )
         }
     }
@@ -312,7 +316,8 @@ private fun ProjectMainContent(
     onInfoOpen: () -> Unit,
     onChapterOpen: (Long) -> Unit,
     onChapterEdit: (Chapitre) -> Unit,
-    onChapterDelete: (Chapitre) -> Unit
+    onChapterDelete: (Chapitre) -> Unit,
+    fontSize: String = "16"
 ) {
     val isEtude = projectPath.endsWith(".sbe")
 
@@ -426,7 +431,7 @@ private fun ProjectMainContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(chapitres, key = { it.id }) { chapitre ->
-                        ChapitreCard(chapitre, onClick = { onChapterOpen(chapitre.id) }, onEdit = { onChapterEdit(chapitre) }, onDelete = { onChapterDelete(chapitre) })
+                        ChapitreCard(chapitre, onClick = { onChapterOpen(chapitre.id) }, onEdit = { onChapterEdit(chapitre) }, onDelete = { onChapterDelete(chapitre) }, fontSize = fontSize)
                     }
                     item { Spacer(Modifier.height(80.dp)) }
                 }
@@ -437,7 +442,8 @@ private fun ProjectMainContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, fontSize: String = "16") {
+    val fs = fontSize.toIntOrNull()?.androidx.compose.ui.unit.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -461,7 +467,8 @@ private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> 
                     ScryBookMarkdown(
                         content = chapitre.resume,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        fontSize = fs
                     )
                 }
             }

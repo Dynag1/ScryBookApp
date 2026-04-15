@@ -31,6 +31,9 @@ class ProjectViewModel @Inject constructor(
     private val _showNewChapterDialog = MutableStateFlow(false)
     val showNewChapterDialog: StateFlow<Boolean> = _showNewChapterDialog
 
+    private val _param = MutableStateFlow(co.dynag.scrybook.data.model.Param())
+    val param: StateFlow<co.dynag.scrybook.data.model.Param> = _param
+
     fun loadProject(path: String) {
         viewModelScope.launch {
             try {
@@ -39,6 +42,7 @@ class ProjectViewModel @Inject constructor(
                 repository.openProject(path)
                 _chapitres.value = repository.getChapitres()
                 _info.value = repository.getInfo()
+                _param.value = repository.getParam()
                 _isLoading.value = false
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -52,6 +56,7 @@ class ProjectViewModel @Inject constructor(
         viewModelScope.launch {
             _chapitres.value = repository.getChapitres()
             _info.value = repository.getInfo()
+            _param.value = repository.getParam()
         }
     }
 

@@ -156,8 +156,10 @@ fun SummaryPanel(
     title: String,
     resume: String,
     modifier: Modifier = Modifier,
+    fontSize: String = "16",
     onSave: (String) -> Unit
 ) {
+    val fs = fontSize.toIntOrNull()?.androidx.compose.ui.unit.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified
     var editedState by remember(resume) { mutableStateOf(TextFieldValue(resume)) }
     var isPreview by remember { mutableStateOf(false) }
     val isDirty = editedState.text != resume
@@ -214,7 +216,8 @@ fun SummaryPanel(
                     ScryBookMarkdown(
                         content = editedState.text.ifBlank { stringResource(R.string.full_summary_no_resume) },
                         modifier = Modifier.fillMaxSize(),
-                        color = if (editedState.text.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                        color = if (editedState.text.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
+                        fontSize = fs
                     )
                 }
             } else {
@@ -228,7 +231,7 @@ fun SummaryPanel(
                         value = editedState,
                         onValueChange = { editedState = it },
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodyMedium,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = fs),
                         placeholder = {
                             Text(
                                 stringResource(R.string.full_summary_no_resume),

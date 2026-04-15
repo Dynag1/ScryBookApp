@@ -208,6 +208,9 @@ fun EditorScreen(
                                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.FRENCH.toLanguageTag())
                                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
+                                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
+                                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 0L)
                                 }
                                 sr.startListening(intent)
                             }
@@ -312,6 +315,9 @@ fun EditorScreen(
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.FRENCH.toLanguageTag())
                                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
+                                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
+                                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 0L)
                             }
                             sr.startListening(intent)
                         }
@@ -740,9 +746,9 @@ private fun ToolbarTextButton(label: String, jsCommand: String, webView: WebView
 }
 
 private fun getEditorHtml(bgColor: String, textColor: String, accentColor: String, outlineColor: String, fontSize: String): String {
-    val baseSize = fontSize.toIntOrNull() ?: 14
-    val h1Size = baseSize + 6
-    val h2Size = baseSize + 2
+    val baseSize = fontSize.toIntOrNull() ?: 16
+    val h1Size = (baseSize * 1.6).toInt()
+    val h2Size = (baseSize * 1.2).toInt()
     return """
 <!DOCTYPE html>
 <html>
@@ -826,10 +832,16 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
       old.forEach(function(el) { el.remove(); });
 
       // Math précise : 
-      // Page 1 : 1123 - 76 (marge bas) - 76 (marge haut) - 100 (titre/header offset) = 871 px
+      // Page 1 : 1123 (A4 @ 96 DPI) - 76 (marge bas) - 76 (marge haut) - 100 (titre/header offset) = 871 px
       // Page 2+ : 1123 - 76 (marge bas) - 76 (marge haut) - 20 (regular offset) = 951 px
-      var page1Height = 871;
-      var regularHeight = 951;
+      // Note: On reste sur du A4 @ 96 DPI pour l'éditeur par défaut
+      var pageHeight = 1123;
+      var margin = 76;
+      var titleOffset = ${h1Size} * 4; // Estimation de la place prise par le titre du chapitre
+      var headerOffset = 20;
+
+      var page1Height = pageHeight - (margin * 2) - titleOffset;
+      var regularHeight = pageHeight - (margin * 2) - headerOffset;
 
       var totalHeight = editor.scrollHeight;
       var currentY = page1Height;
