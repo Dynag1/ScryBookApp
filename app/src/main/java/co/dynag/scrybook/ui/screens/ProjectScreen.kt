@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.hilt.navigation.compose.hiltViewModel
 import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Chapitre
@@ -443,7 +445,7 @@ private fun ProjectMainContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, fontSize: String = "16") {
-    val fs = fontSize.toIntOrNull()?.androidx.compose.ui.unit.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified
+    val fs = fontSize.toIntOrNull()?.sp ?: TextUnit.Unspecified
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),

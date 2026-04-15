@@ -24,6 +24,8 @@ import co.dynag.scrybook.R
 import co.dynag.scrybook.data.model.Chapitre
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 
 @Composable
 fun ProjectDrawerContent(
@@ -159,7 +161,7 @@ fun SummaryPanel(
     fontSize: String = "16",
     onSave: (String) -> Unit
 ) {
-    val fs = fontSize.toIntOrNull()?.androidx.compose.ui.unit.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified
+    val fs = fontSize.toIntOrNull()?.sp ?: TextUnit.Unspecified
     var editedState by remember(resume) { mutableStateOf(TextFieldValue(resume)) }
     var isPreview by remember { mutableStateOf(false) }
     val isDirty = editedState.text != resume
