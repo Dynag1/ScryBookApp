@@ -92,4 +92,8 @@ class ProjectViewModel @Inject constructor(
             _info.value = newInfo
         }
     }
+
+    suspend fun getChapterHtml(id: Long): String {
+        return repository.getChapitre(id)?.contenuHtml ?: ""
+    }
 }

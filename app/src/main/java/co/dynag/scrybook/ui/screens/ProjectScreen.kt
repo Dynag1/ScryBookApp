@@ -4,6 +4,8 @@ import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -153,7 +155,8 @@ fun ProjectScreen(
                         onChapterOpen = onChapterOpen,
                         onChapterEdit = { chapterToEdit = it },
                         onChapterDelete = { chapterToDelete = it },
-                        fontSize = param.taille
+                        fontSize = param.taille,
+                        getChapterHtml = { id -> viewModel.getChapterHtml(id) }
                     )
                 }
                 VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -214,7 +217,8 @@ fun ProjectScreen(
                 onChapterOpen = onChapterOpen,
                 onChapterEdit = { chapterToEdit = it },
                 onChapterDelete = { chapterToDelete = it },
-                fontSize = param.taille
+                fontSize = param.taille,
+                getChapterHtml = { id -> viewModel.getChapterHtml(id) }
             )
         }
     }
@@ -319,7 +323,8 @@ private fun ProjectMainContent(
     onChapterOpen: (Long) -> Unit,
     onChapterEdit: (Chapitre) -> Unit,
     onChapterDelete: (Chapitre) -> Unit,
-    fontSize: String = "16"
+    fontSize: String = "16",
+    getChapterHtml: suspend (Long) -> String
 ) {
     val isEtude = projectPath.endsWith(".sbe")
 
@@ -433,7 +438,14 @@ private fun ProjectMainContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(chapitres, key = { it.id }) { chapitre ->
-                        ChapitreCard(chapitre, onClick = { onChapterOpen(chapitre.id) }, onEdit = { onChapterEdit(chapitre) }, onDelete = { onChapterDelete(chapitre) }, fontSize = fontSize)
+                        ChapitreCard(
+                            chapitre = chapitre,
+                            onClick = { onChapterOpen(chapitre.id) },
+                            onEdit = { onChapterEdit(chapitre) },
+                            onDelete = { onChapterDelete(chapitre) },
+                            fontSize = fontSize,
+                            getChapterHtml = getChapterHtml
+                        )
                     }
                     item { Spacer(Modifier.height(80.dp)) }
                 }
@@ -444,38 +456,104 @@ private fun ProjectMainContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapitreCard(chapitre: Chapitre, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, fontSize: String = "16") {
-    val fs = fontSize.toIntOrNull()?.sp ?: TextUnit.Unspecified
+private fun ChapitreCard(
+    chapitre: Chapitre,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    fontSize: String = "16",
+    getChapterHtml: suspend (Long) -> String
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    // Dynamically fetch subtitles when expanded
+    val subtitles by produceState<List<String>>(initialValue = emptyList(), isExpanded) {
+        if (isExpanded) {
+            val html = getChapterHtml(chapitre.id)
+            val regex = Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE)
+            value = regex.findAll(html)
+                .map { it.groupValues[1].replace(Regex("<[^>]*>"), "").trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+        } else {
+            value = emptyList()
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        onClick = onClick
+        onClick = { isExpanded = !isExpanded }
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(40.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(chapitre.numero.ifBlank { "—" }, style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Column {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(40.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(chapitre.numero.ifBlank { "—" }, style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
                 }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(chapitre.nom, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(onClick = onClick) { Icon(Icons.Default.Book, "Ouvrir", tint = MaterialTheme.colorScheme.primary) }
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Modifier", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Supprimer", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Réduire" else "Développer",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(chapitre.nom, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (chapitre.resume.isNotBlank()) {
-                    ScryBookMarkdown(
-                        content = chapitre.resume,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth(),
-                        fontSize = fs
+
+            if (isExpanded) {
+                if (subtitles.isNotEmpty()) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 52.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        subtitles.forEach { title ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onClick() }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp))
+                                    )
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) }
         }
     }
 }
