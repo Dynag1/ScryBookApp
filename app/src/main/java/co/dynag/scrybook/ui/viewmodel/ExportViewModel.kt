@@ -117,7 +117,8 @@ class ExportViewModel @Inject constructor(
                     val tocEntries = mutableListOf<Pair<String, Int>>()
                     
                     val chapterLayouts = chapitres.map { chapitre ->
-                        val formattedContent = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight, baseFontSize)
+                        val (textContent, tableSections) = extractTablesFromHtml(chapitre.contenuHtml)
+                        val formattedContent = getHtmlContent(textContent, contentWidth, contentHeight, baseFontSize)
                         val layout = StaticLayout.Builder.obtain(formattedContent, 0, formattedContent.length, bodyPaint, contentWidth)
                             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                             .setLineSpacing(0f, 1.6f)
@@ -138,7 +139,7 @@ class ExportViewModel @Inject constructor(
                             yOffset += lh + spacing.second // Margin Bottom
                         }
                         currentPage += pagesInChapter
-                        layout
+                        Pair(layout, tableSections)
                     }
 
                     // --- Phase 2 : Rendu ---
@@ -221,7 +222,7 @@ class ExportViewModel @Inject constructor(
                     // 3. Chapitres
                     for (idx in chapitres.indices) {
                         val chapitre = chapitres[idx]
-                        val layout = chapterLayouts[idx]
+                        val (layout, chapterTables) = chapterLayouts[idx]
                         
                         var page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
                         var canvas = page.canvas
@@ -280,6 +281,23 @@ class ExportViewModel @Inject constructor(
                             drawLayoutLine(canvas, layout, i, margin, yPos)
                             yPos += lh + spacing.second // Margin Bottom
                         }
+
+                        // Render tables after text content
+                        for (table in chapterTables) {
+                            val estimatedTableHeight = table.rows.size * (baseFontSize * 2f + 12f) + 16f
+                            if (yPos + estimatedTableHeight > pageHeight - margin) {
+                                canvas.drawText((docPageNumber - 2).toString(), pageWidth - margin, pageHeight - margin / 2, headerPaint)
+                                document.finishPage(page)
+                                docPageNumber++
+                                page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, docPageNumber).create())
+                                canvas = page.canvas
+                                drawHeaderLogo(canvas)
+                                canvas.drawText(chapitre.nom, pageWidth / 2f - headerPaint.measureText(chapitre.nom) / 2f, margin - 15f, headerPaint)
+                                yPos = margin + 20f
+                            }
+                            yPos = drawHtmlTable(canvas, table, margin, yPos, contentWidth.toFloat(), bodyPaint, baseFontSize)
+                        }
+
                         canvas.drawText((docPageNumber - 2).toString(), pageWidth - margin, pageHeight - margin / 2, headerPaint)
                         document.finishPage(page)
                         docPageNumber++
@@ -397,7 +415,8 @@ class ExportViewModel @Inject constructor(
                         }
                     }
 
-                    val content = getHtmlContent(chapitre.contenuHtml, contentWidth, contentHeight, baseFontSize)
+                    val (textContent, chapterTables) = extractTablesFromHtml(chapitre.contenuHtml)
+                    val content = getHtmlContent(textContent, contentWidth, contentHeight, baseFontSize)
                     val layout = StaticLayout.Builder.obtain(content, 0, content.length, bodyPaint, contentWidth)
                         .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(0f, 1.6f).build()
 
@@ -453,6 +472,22 @@ class ExportViewModel @Inject constructor(
                         drawLayoutLine(canvas, layout, i, margin, yP)
                         yP += lh + spacing.second // Margin Bottom
                     }
+
+                    // Render tables after text content
+                    for (table in chapterTables) {
+                        val estimatedTableHeight = table.rows.size * (baseFontSize * 2f + 12f) + 16f
+                        if (yP + estimatedTableHeight > pageHeight - margin) {
+                            canvas.drawText(pNum.toString(), pageWidth - margin, pageHeight - margin/2, headerPaint)
+                            document.finishPage(page)
+                            pNum++
+                            page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pNum).create())
+                            canvas = page.canvas
+                            drawHeaderLogo(canvas)
+                            yP = margin + 20f
+                        }
+                        yP = drawHtmlTable(canvas, table, margin, yP, contentWidth.toFloat(), bodyPaint, baseFontSize)
+                    }
+
                     canvas.drawText(pNum.toString(), pageWidth - margin, pageHeight - margin/2, headerPaint)
                     document.finishPage(page)
 
@@ -475,7 +510,9 @@ class ExportViewModel @Inject constructor(
     }
 
     private fun getHtmlContent(html: String, contentWidth: Int, contentHeight: Int, baseFontSize: Float): CharSequence {
-        val cleaned = cleanHtmlForExport(html)
+        // Strip tables before passing to Html.fromHtml (not supported)
+        val (cleanedNoTables, _) = extractTablesFromHtml(html)
+        val cleaned = cleanHtmlForExport(cleanedNoTables)
         val imgAttrsMap = mutableMapOf<String, ImageAttrs>()
         val imgRegex = Regex("<img[^>]*src=\"([^\"]+)\"[^>]*>", RegexOption.IGNORE_CASE)
         
@@ -625,9 +662,148 @@ class ExportViewModel @Inject constructor(
         val x = (pageWidth - paint.measureText(text)) / 2f
         canvas.drawText(text, x, y, paint)
     }
+
+    /**
+     * Extrait les tableaux HTML du contenu.
+     * Retourne (htmlSansTableaux, liste de tableaux parsed).
+     * Les tableaux sont remplacés par un marqueur \n dans le texte.
+     */
+    private fun extractTablesFromHtml(html: String): Pair<String, List<ParsedTable>> {
+        val tables = mutableListOf<ParsedTable>()
+        val tableRegex = Regex("""<table[^>]*>(.*?)</table>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val cleaned = tableRegex.replace(html) { match ->
+            val tableHtml = match.value
+            tables.add(parseHtmlTable(tableHtml))
+            "\n" // placeholder
+        }
+        return cleaned to tables
+    }
+
+    private fun parseHtmlTable(tableHtml: String): ParsedTable {
+        val rows = mutableListOf<List<ParsedCell>>()
+        val rowRegex = Regex("""<tr[^>]*>(.*?)</tr>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val cellRegex = Regex("""<(td|th)([^>]*)>(.*?)</(td|th)>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val bgcolorRegex = Regex("""bgcolor=["']?([#\w]+)["']?""", RegexOption.IGNORE_CASE)
+        val isHeaderRow = tableHtml.contains("<thead", ignoreCase = true)
+
+        rowRegex.findAll(tableHtml).forEach { rowMatch ->
+            val rowHtml = rowMatch.groupValues[1]
+            val cells = mutableListOf<ParsedCell>()
+            val isHeader = rowMatch.value.let { rv ->
+                // Is this row inside thead?
+                val rowStart = tableHtml.indexOf(rv)
+                val theadEnd = tableHtml.indexOf("</thead>", ignoreCase = true)
+                isHeaderRow && theadEnd > 0 && rowStart < theadEnd
+            } || rowHtml.contains("<th", ignoreCase = true)
+            cellRegex.findAll(rowHtml).forEach { cellMatch ->
+                val attrs = cellMatch.groupValues[2]
+                val content = cellMatch.groupValues[3]
+                    .replace(Regex("<br\\s*/?>\n?", RegexOption.IGNORE_CASE), "\n")
+                    .replace(Regex("<[^>]+>"), "")
+                    .replace("&nbsp;", " ")
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .trim()
+                val bgcolor = bgcolorRegex.find(attrs)?.groupValues?.get(1)
+                cells.add(ParsedCell(content, bgcolor, isHeader || cellMatch.groupValues[1].equals("th", ignoreCase = true)))
+            }
+            if (cells.isNotEmpty()) rows.add(cells)
+        }
+        return ParsedTable(rows)
+    }
+
+    /**
+     * Draws an HTML table on the PDF canvas.
+     * Returns the y position after the table.
+     */
+    private fun drawHtmlTable(
+        canvas: android.graphics.Canvas,
+        table: ParsedTable,
+        x: Float,
+        y: Float,
+        tableWidth: Float,
+        bodyPaint: TextPaint,
+        baseFontSize: Float
+    ): Float {
+        if (table.rows.isEmpty()) return y
+        val colCount = table.rows.maxOf { it.size }
+        if (colCount == 0) return y
+        val colWidth = tableWidth / colCount
+        val cellPadding = 6f
+        val cellPaint = TextPaint(bodyPaint).apply { textSize = baseFontSize * 0.9f }
+        val headerPaint = TextPaint(bodyPaint).apply {
+            textSize = baseFontSize * 0.9f
+            typeface = android.graphics.Typeface.create(bodyPaint.typeface, android.graphics.Typeface.BOLD)
+        }
+        val borderPaint = android.graphics.Paint().apply {
+            color = Color.DKGRAY
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 1f
+            isAntiAlias = true
+        }
+        val fillPaint = android.graphics.Paint().apply {
+            style = android.graphics.Paint.Style.FILL
+        }
+
+        var currentY = y + 8f
+        for (row in table.rows) {
+            // Calculate row height based on tallest cell
+            var rowHeight = 0f
+            row.forEach { cell ->
+                val paint = if (cell.isHeader) headerPaint else cellPaint
+                val text = cell.text
+                val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, (colWidth - cellPadding * 2).toInt().coerceAtLeast(1))
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(0f, 1.2f)
+                    .build()
+                val h = layout.height + cellPadding * 2
+                if (h > rowHeight) rowHeight = h
+            }
+            rowHeight = rowHeight.coerceAtLeast(baseFontSize + cellPadding * 2)
+
+            var currentX = x
+            for (colIdx in 0 until colCount) {
+                val cell = row.getOrNull(colIdx)
+                // Fill cell background
+                val bgColor = when {
+                    cell?.bgcolor != null -> {
+                        try { Color.parseColor(cell.bgcolor) } catch (e: Exception) { Color.TRANSPARENT }
+                    }
+                    cell?.isHeader == true -> Color.argb(40, 100, 100, 100)
+                    else -> Color.TRANSPARENT
+                }
+                if (bgColor != Color.TRANSPARENT) {
+                    fillPaint.color = bgColor
+                    canvas.drawRect(currentX, currentY, currentX + colWidth, currentY + rowHeight, fillPaint)
+                }
+                // Draw border
+                canvas.drawRect(currentX, currentY, currentX + colWidth, currentY + rowHeight, borderPaint)
+                // Draw text
+                if (cell != null) {
+                    val paint = if (cell.isHeader) headerPaint else cellPaint
+                    val text = cell.text
+                    val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, (colWidth - cellPadding * 2).toInt().coerceAtLeast(1))
+                        .setAlignment(if (cell.isHeader) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
+                        .setLineSpacing(0f, 1.2f)
+                        .build()
+                    canvas.save()
+                    canvas.translate(currentX + cellPadding, currentY + cellPadding)
+                    layout.draw(canvas)
+                    canvas.restore()
+                }
+                currentX += colWidth
+            }
+            currentY += rowHeight
+        }
+        return currentY + 8f
+    }
 }
 
 private data class ImageAttrs(val width: String?, val height: String?, val style: String?)
+
+private data class ParsedCell(val text: String, val bgcolor: String?, val isHeader: Boolean)
+private data class ParsedTable(val rows: List<List<ParsedCell>>)
 
 sealed class ExportResult {
     data class Success(val path: String) : ExportResult()

@@ -14,7 +14,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,6 +25,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +44,6 @@ import co.dynag.scrybook.ui.viewmodel.EditorViewModel
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import java.util.Locale
-import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -81,7 +86,8 @@ fun EditorScreen(
     var showNewChapterDialog by remember { mutableStateOf(false) }
     var showEditChapterDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    
+    var showInsertTableDialog by remember { mutableStateOf(false) }
+
     var activeSidePanel by remember { mutableStateOf(SidePanelType.SUMMARY) }
 
     val configuration = LocalConfiguration.current
@@ -236,6 +242,7 @@ fun EditorScreen(
                                 htmlContent = htmlContent,
                                 onContentChanged = { viewModel.updateContent(it) },
                                 onInsertImage = { imagePickerLauncher.launch("image/*") },
+                                onInsertTable = { showInsertTableDialog = true },
                                 fontSize = param.taille
                             )
                         }
@@ -341,6 +348,7 @@ fun EditorScreen(
                         htmlContent = htmlContent,
                         onContentChanged = { viewModel.updateContent(it) },
                         onInsertImage = { imagePickerLauncher.launch("image/*") },
+                        onInsertTable = { showInsertTableDialog = true },
                         fontSize = param.taille
                     )
                 }
@@ -437,6 +445,45 @@ fun EditorScreen(
                 dismissButton = { TextButton(onClick = { showDeleteConfirmDialog = false }) { Text(stringResource(R.string.action_cancel)) } }
             )
         }
+    }
+
+    // --- Dialog : Insérer un tableau ---
+    if (showInsertTableDialog) {
+        var rows by remember { mutableStateOf("3") }
+        var cols by remember { mutableStateOf("3") }
+        AlertDialog(
+            onDismissRequest = { showInsertTableDialog = false },
+            title = { Text("Insérer un tableau") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = rows,
+                        onValueChange = { rows = it.filter { c -> c.isDigit() } },
+                        label = { Text("Lignes") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = cols,
+                        onValueChange = { cols = it.filter { c -> c.isDigit() } },
+                        label = { Text("Colonnes") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val r = rows.toIntOrNull()?.coerceIn(1, 20) ?: 3
+                    val c = cols.toIntOrNull()?.coerceIn(1, 10) ?: 3
+                    webView?.evaluateJavascript("insertTable($r, $c);", null)
+                    showInsertTableDialog = false
+                }) { Text("Insérer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInsertTableDialog = false }) { Text("Annuler") }
+            }
+        )
     }
 }
 
@@ -556,6 +603,7 @@ private fun EditorMainContent(
     htmlContent: String,
     onContentChanged: (String) -> Unit,
     onInsertImage: () -> Unit,
+    onInsertTable: () -> Unit,
     fontSize: String
 ) {
     var isH1Active by remember { mutableStateOf(false) }
@@ -576,6 +624,7 @@ private fun EditorMainContent(
         FormattingToolbar(
             webView = webView,
             onInsertImage = onInsertImage,
+            onInsertTable = onInsertTable,
             isH1Active = isH1Active,
             isH2Active = isH2Active
         )
@@ -653,9 +702,11 @@ private fun EditorMainContent(
 private fun FormattingToolbar(
     webView: WebView?,
     onInsertImage: () -> Unit,
+    onInsertTable: () -> Unit,
     isH1Active: Boolean,
     isH2Active: Boolean
 ) {
+    var showCellColorPicker by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp,
@@ -705,9 +756,111 @@ private fun FormattingToolbar(
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
 
             item { ToolbarIconButton(Icons.Default.Image, "", webView, onClick = onInsertImage) }
-            
+
             item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
-            
+
+            // Tableau
+            item { ToolbarIconButton(Icons.Default.TableChart, "", webView, onClick = onInsertTable) }
+            item {
+                Box {
+                    ToolbarIconButton(Icons.Default.ColorLens, "", webView, onClick = { showCellColorPicker = true })
+                    DropdownMenu(
+                        expanded = showCellColorPicker,
+                        onDismissRequest = { showCellColorPicker = false }
+                    ) {
+                        val cellColors = listOf(
+                            Color(0xFFFFFFFF) to "Blanc",
+                            Color(0xFFFFEB3B) to "Jaune",
+                            Color(0xFFFF9800) to "Orange",
+                            Color(0xFFF44336) to "Rouge",
+                            Color(0xFF4CAF50) to "Vert",
+                            Color(0xFF2196F3) to "Bleu",
+                            Color(0xFF9C27B0) to "Violet",
+                            Color(0xFF607D8B) to "Gris",
+                            Color(0xFF795548) to "Marron",
+                            Color(0xFF000000) to "Noir"
+                        )
+                        Text(
+                            "Couleur de cellule",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        // Row 1: first 5 colors
+                        Row(modifier = Modifier.padding(horizontal = 8.dp)) {
+                            cellColors.take(5).forEach { (color, _) ->
+                                val hex = "#%06X".format(color.toArgb() and 0xFFFFFF)
+                                Box(
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                        .clickable {
+                                            webView?.evaluateJavascript("setCellBgColor('$hex');", null)
+                                            showCellColorPicker = false
+                                        }
+                                )
+                            }
+                        }
+                        // Row 2: next 5 colors
+                        Row(modifier = Modifier.padding(horizontal = 8.dp)) {
+                            cellColors.drop(5).forEach { (color, _) ->
+                                val hex = "#%06X".format(color.toArgb() and 0xFFFFFF)
+                                Box(
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                        .clickable {
+                                            webView?.evaluateJavascript("setCellBgColor('$hex');", null)
+                                            showCellColorPicker = false
+                                        }
+                                )
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            text = { Text("Effacer couleur") },
+                            onClick = {
+                                webView?.evaluateJavascript("setCellBgColor('');", null)
+                                showCellColorPicker = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.FormatColorReset, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Supprimer tableau") },
+                            onClick = {
+                                webView?.evaluateJavascript("deleteCurrentTable();", null)
+                                showCellColorPicker = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Delete, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ajouter ligne") },
+                            onClick = {
+                                webView?.evaluateJavascript("addTableRow();", null)
+                                showCellColorPicker = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Add, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ajouter colonne") },
+                            onClick = {
+                                webView?.evaluateJavascript("addTableCol();", null)
+                                showCellColorPicker = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Add, null) }
+                        )
+                    }
+                }
+            }
+
+            item { VerticalDivider(modifier = Modifier.height(24.dp).padding(horizontal = 4.dp)) }
+
             item { ToolbarIconButton(Icons.Default.Undo, "document.execCommand('undo');", webView) }
             item { ToolbarIconButton(Icons.Default.Redo, "document.execCommand('redo');", webView) }
         }
@@ -787,6 +940,28 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     background-color: transparent !important;
     color: inherit !important;
   }
+  /* ===== TABLEAUX ===== */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: ${fontSize}px;
+  }
+  table td, table th {
+    border: 1px solid $outlineColor;
+    padding: 6px 10px;
+    min-width: 40px;
+    min-height: 24px;
+    vertical-align: top;
+  }
+  table th {
+    background-color: rgba(128,128,128,0.15);
+    font-weight: bold;
+    text-align: center;
+  }
+  table td[bgcolor], table th[bgcolor] {
+    /* Les bgcolor inline sont respectés nativement */
+  }
   h1 { 
     display: block !important; 
     text-align: center; 
@@ -807,7 +982,7 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     padding-left: 20px !important; /* Retrait (indentation) */
   }
   h2 * { font-size: \${h2Size}px !important; }
-  p { margin-bottom: 0.8em; font-size: ${fontSize}px !important; }
+  p { margin-bottom: 8px; font-size: ${fontSize}px !important; }
   p * { font-size: ${fontSize}px !important; }
   ul, ol { margin-left: 20px; margin-bottom: 0.8em; }
   img { max-width: 100% !important; height: auto !important; display: block; margin: 10px auto; border-radius: 4px; }
@@ -869,14 +1044,24 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
     var div = document.createElement('div');
     div.innerHTML = html;
     var all = div.querySelectorAll('*');
+    var TABLE_TAGS = ['table','thead','tbody','tfoot','tr','td','th'];
     for (var i = 0; i < all.length; i++) {
         var el = all[i];
         if (el.nodeType === 1) { // Element
-            if (el.tagName.toLowerCase() !== 'img') {
+            var tag = el.tagName.toLowerCase();
+            if (tag === 'img') {
+                // Garder style pour images (width/height)
+            } else if (TABLE_TAGS.indexOf(tag) >= 0) {
+                // Pour les cellules, préserver bgcolor
+                var bgcolor = el.getAttribute('bgcolor');
+                el.removeAttribute('style');
+                el.removeAttribute('class');
+                if (bgcolor) el.setAttribute('bgcolor', bgcolor);
+            } else {
                 el.removeAttribute('style');
                 el.removeAttribute('class');
             }
-            if (el.tagName.toLowerCase() === 'font') {
+            if (tag === 'font') {
                 el.removeAttribute('color');
                 el.removeAttribute('face');
                 el.removeAttribute('size');
@@ -944,6 +1129,114 @@ private fun getEditorHtml(bgColor: String, textColor: String, accentColor: Strin
 
   function insertImage(dataUri) {
     document.execCommand('insertHTML', false, '<img src="' + dataUri + '">');
+  }
+
+  // ===== GESTION DES TABLEAUX =====
+  function insertTable(rows, cols) {
+    var html = '<table border="1" style="border-collapse:collapse;width:100%;">';
+    html += '<thead><tr>';
+    for (var c = 0; c < cols; c++) {
+      html += '<th style="border:1px solid #999;padding:6px 10px;">En-tête ' + (c+1) + '</th>';
+    }
+    html += '</tr></thead><tbody>';
+    for (var r = 0; r < rows - 1; r++) {
+      html += '<tr>';
+      for (var c = 0; c < cols; c++) {
+        html += '<td style="border:1px solid #999;padding:6px 10px;"></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    document.execCommand('insertHTML', false, html);
+    Android.onContentChanged(cleanHtml(editor.innerHTML));
+  }
+
+  function getActiveCells() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return [];
+    var range = sel.getRangeAt(0);
+    // Chercher la cellule autour du curseur
+    var node = sel.anchorNode;
+    while (node && node !== document.body) {
+      if (node.nodeName === 'TD' || node.nodeName === 'TH') return [node];
+      node = node.parentNode;
+    }
+    return [];
+  }
+
+  function setCellBgColor(color) {
+    var cells = getActiveCells();
+    if (cells.length === 0) return;
+    cells.forEach(function(cell) {
+      if (color === '') {
+        cell.removeAttribute('bgcolor');
+        cell.style.backgroundColor = '';
+      } else {
+        cell.setAttribute('bgcolor', color);
+        cell.style.backgroundColor = color;
+      }
+    });
+    Android.onContentChanged(cleanHtml(editor.innerHTML));
+  }
+
+  function deleteCurrentTable() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    var node = sel.anchorNode;
+    while (node && node !== document.body) {
+      if (node.nodeName === 'TABLE') {
+        node.parentNode.removeChild(node);
+        Android.onContentChanged(cleanHtml(editor.innerHTML));
+        return;
+      }
+      node = node.parentNode;
+    }
+  }
+
+  function addTableRow() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    var node = sel.anchorNode;
+    var currentRow = null;
+    while (node && node !== document.body) {
+      if (node.nodeName === 'TR') { currentRow = node; break; }
+      node = node.parentNode;
+    }
+    if (!currentRow) return;
+    var cols = currentRow.cells.length;
+    var newRow = document.createElement('tr');
+    for (var i = 0; i < cols; i++) {
+      var td = document.createElement('td');
+      td.style.border = '1px solid #999';
+      td.style.padding = '6px 10px';
+      newRow.appendChild(td);
+    }
+    currentRow.parentNode.insertBefore(newRow, currentRow.nextSibling);
+    Android.onContentChanged(cleanHtml(editor.innerHTML));
+  }
+
+  function addTableCol() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    var node = sel.anchorNode;
+    var currentCell = null;
+    while (node && node !== document.body) {
+      if (node.nodeName === 'TD' || node.nodeName === 'TH') { currentCell = node; break; }
+      node = node.parentNode;
+    }
+    if (!currentCell) return;
+    var colIdx = currentCell.cellIndex;
+    var table = currentCell.closest('table');
+    if (!table) return;
+    var rows = table.rows;
+    for (var i = 0; i < rows.length; i++) {
+      var newCell = (i === 0) ? document.createElement('th') : document.createElement('td');
+      newCell.style.border = '1px solid #999';
+      newCell.style.padding = '6px 10px';
+      var refCell = rows[i].cells[colIdx + 1] || null;
+      rows[i].insertBefore(newCell, refCell);
+    }
+    Android.onContentChanged(cleanHtml(editor.innerHTML));
   }
 
   function scrollToTitle(titleText) {
