@@ -35,6 +35,8 @@ Que vous soyez en train de rédiger votre premier roman ou de peaufiner une œuv
 
 ## 🚀 Installation & Développement
 
+Depot F-Droid : ```https://dynag1.github.io/Dynag1-Fdroid/fdroid/repo/```
+
 ### Prérequis
 - Android Studio Ladybug ou plus récent
 - SDK Android API 35 (minimum 26)
