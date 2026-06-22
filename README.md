@@ -24,7 +24,7 @@ Que vous soyez en train de rédiger votre premier roman ou de peaufiner une œuv
 - **Interface Adaptive** : Optimisé pour les téléphones et les tablettes (affichage permanent du menu et du résumé en mode paysage sur écrans larges).
 - **Accessibilité** : Synthèse vocale (TTS) pour écouter vos écrits et reconnaissance vocale pour la dictée.
 
-Depot F-Droid : [https://dynag1.github.io/Dynag1-Fdroid/fdroid/repo/]
+Depot F-Droid : https://dynag1.github.io/Dynag1-Fdroid/fdroid/repo/
 
 
 ## 🛠️ Stack Technique
