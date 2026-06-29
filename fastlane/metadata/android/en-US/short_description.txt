@@ -1,0 +1,1 @@
+A modern and clean Android writing assistant for authors.

@@ -58,18 +58,19 @@ jobs:
         run: |
           PKG_ID="co.dynag.scrybook"
 
-          # Nettoyer l'ancienne structure de métadonnées obsolète à la racine du dépôt
+          # Nettoyer l'ancienne structure de métadonnées obsolète
           rm -rf store-repo/metadata/$PKG_ID
+          rm -rf store-repo/fdroid/metadata/$PKG_ID
 
-          # Créer la structure directement dans le sous-dossier fdroid/ (le bon layout pour le serveur F-Droid)
+          # Créer la structure sous metadata/ à la racine
           mkdir -p store-repo/apks/$PKG_ID
-          mkdir -p store-repo/fdroid/metadata/$PKG_ID/en-US
-          mkdir -p store-repo/fdroid/metadata/$PKG_ID/fr-FR
+          mkdir -p store-repo/metadata/$PKG_ID/en-US
+          mkdir -p store-repo/metadata/$PKG_ID/fr-FR
 
           cp app/build/outputs/apk/release/*.apk store-repo/apks/$PKG_ID/scrybook-release.apk
 
-          cp -r fastlane/metadata/android/fr-FR/* store-repo/fdroid/metadata/$PKG_ID/fr-FR/ 2>/dev/null || true
-          cp -r fastlane/metadata/android/en-US/* store-repo/fdroid/metadata/$PKG_ID/en-US/ 2>/dev/null || true
+          cp -r fastlane/metadata/android/fr-FR/* store-repo/metadata/$PKG_ID/fr-FR/ 2>/dev/null || true
+          cp -r fastlane/metadata/android/en-US/* store-repo/metadata/$PKG_ID/en-US/ 2>/dev/null || true
 
           cd store-repo
           git config user.name "App Github Action"
@@ -79,7 +80,8 @@ jobs:
           git pull --rebase --autostash origin main
 
           # On ne modifie pas les fichiers de workflow (.github/workflows/) pour éviter d'exiger la permission 'workflow' sur le jeton PAT.
-          git add apks/ fdroid/metadata/ metadata/
+          git add apks/ metadata/
+          git add fdroid/metadata/ 2>/dev/null || true
           git status
           if git commit -m "Mise à jour automatique de l'APK ScryBook et métadonnées F-Droid"; then
             success=false

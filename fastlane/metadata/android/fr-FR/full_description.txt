@@ -1,0 +1,11 @@
+ScryBook est une application Android moderne et épurée conçue pour les écrivains et les auteurs qui souhaitent transporter leurs manuscrits partout avec eux.
+
+Que vous soyez en train de rédiger votre premier roman ou de peaufiner une œuvre complexe, ScryBook vous offre une interface sans distraction avec tous les outils nécessaires à la gestion de votre projet littéraire.
+
+Fonctionnalités Clés :
+- Éditeur Riche (WYSIWYG) : Une interface d'écriture fluide avec support du gras, italique, titres (H1-H3), listes et images.
+- Sauvegarde Automatique Intelligente : Ne perdez jamais un mot. L'app sauvegarde toutes les 30 secondes, lors des changements de chapitres ou quand vous quittez l'application.
+- Gestion de Projet Complète : Organisez votre livre en chapitres, créez des fiches détaillées pour vos personnages et documentez vos lieux.
+- Compatibilité Desktop : ScryBook utilise le format .sb (base de données SQLite), assurant une compatibilité totale avec la version bureau de l'application.
+- Export PDF : Générez un manuscrit propre au format PDF directement depuis votre téléphone ou tablette.
+- Synthèse vocale & Dictée vocale : Écoutez vos écrits ou dictez vos idées en déplacement.
